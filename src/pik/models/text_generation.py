@@ -89,6 +89,7 @@ class TextGenerator:
         """Generate multiple answers for multiple questions.
         
         Returns:
-            text_outputs (list[str]): list of generated text with len num_generations
+            text_outputs (list[str]): list of generated text with
+                len num_generations * num_questions
         """
         raise NotImplementedError

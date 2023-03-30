@@ -1,6 +1,6 @@
 import re
 import string
-from typing import Union, List
+from typing import Union
 
 
 def normalize_answer(s: str) -> str:
@@ -17,7 +17,7 @@ def normalize_answer(s: str) -> str:
         return ' '.join(text.split())
 
     def handle_punc(text):
-        exclude = set(string.punctuation + "".join([u"‘", u"’", u"´", u"`"]))
+        exclude = set(string.punctuation + "".join([u"‘", u"’", u"´", u"`"]))  # pylint: disable=all
         return ''.join(ch if ch not in exclude else ' ' for ch in text)
 
     def lower(text):
@@ -29,7 +29,7 @@ def normalize_answer(s: str) -> str:
     return white_space_fix(remove_articles(handle_punc(lower(replace_underscore(s))))).strip()
 
 
-def evaluate_answer(model_answer: str, dataset_answers: Union[str, List[str]]) -> int:
+def evaluate_answer(model_answer: str, dataset_answers: Union[str, list[str]]) -> int:
     """Evaluate if model answer is correct against possible answer aliases.
 
     Args:
