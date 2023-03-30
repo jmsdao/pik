@@ -13,15 +13,15 @@ IMPLEMENTED_MODELS = SMALL_MODELS + LARGE_MODELS
 
 
 def load_model_and_tokenizer(model_name: str) -> tuple:
-    """Loads a model and tokenizer from the Hugging Face model hub.
+    """Loads a model and tokenizer from the HuggingFace model hub.
     
     Args:
         model_name (str): Name of the model to load. Must be one of:
             ['test', 'gpt2', 'llama-7b']
 
     Returns (tuple):
-        model: Model loaded from the Hugging Face model hub
-        tokenizer: Tokenizer loaded from the Hugging Face model hub
+        model: Model loaded from the HuggingFace model hub
+        tokenizer: Tokenizer loaded from the HuggingFace model hub
 
     For testing, use model_name='test' to load gpt2 without downloading model
     weights from the HuggingFace model hub (weights will be random).
