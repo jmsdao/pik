@@ -16,9 +16,7 @@ def load_model_and_tokenizer(model_name: str) -> tuple:
     """Loads a model and tokenizer from the Hugging Face model hub.
     
     Args:
-        model_name (str): Name of the model to load. Must be one of the following:
-            - gpt2
-            - llama-7b
+        model_name (str): Name of the model to load. Must be one of the following: gpt2, llama-7b
 
     Returns (tuple):
         model: Model loaded from the Hugging Face model hub
@@ -28,7 +26,7 @@ def load_model_and_tokenizer(model_name: str) -> tuple:
         raise NotImplementedError(
             f"Model '{model_name}' is not implemented. Implemented models: {IMPLEMENTED_MODELS}"
         )
-    
+
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Code block to load gpt2 model and tokenizer
