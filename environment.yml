@@ -1,0 +1,14 @@
+name: pik
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.9
+  - datasets
+  - accelerate
+  - sentencepiece
+  - pytorch 
+  - pip
+  - pip:
+    - git+https://github.com/huggingface/transformers.git@60d51ef5123d949fd8c59cd4d3254e711541d278
