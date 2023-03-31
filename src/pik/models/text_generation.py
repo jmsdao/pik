@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Iterable, Union
 import torch
 from transformers import GenerationConfig
 
@@ -56,11 +56,12 @@ class TextGenerator:
             num_generations: int = 1,
             generations_per_pass: int = 1,
         ) -> list[str]:
-        """Generate multiple answers for one question.
+        """Generate answers (single or multiple) for one question.
+        Each model forward pass will be batched by generations_per_pass (at most).
         
         Args:
             text_input (str): text to use as input for the model
-            num_generations (int): number of generations to make total
+            num_generations (int): number of generations total for the given input
             generations_per_pass (int): number of generations to make per pass
                 For example, if num_generations=40 and generations_per_pass=15, then
                 batch sizes will be [15, 15, 10]
@@ -71,6 +72,8 @@ class TextGenerator:
         """
         if not isinstance(text_input, str):
             raise ValueError(f'text_input must be a string, not "{type(text_input)}"')
+        if num_generations < 1 or generations_per_pass < 1:
+            raise ValueError(f'num_generations and generations_per_pass must be >= 1')
 
         if self.generation_seed:
             torch.manual_seed(self.generation_seed)
@@ -107,12 +110,53 @@ class TextGenerator:
 
         return text_generations
 
-    def generate_multi(self) -> list[str]:
-        """Generate multiple answers for multiple questions.
-        TODO
+    def generate_multi(self,
+            text_inputs: Union[str, Iterable[str]],
+            num_generations: int = 1,
+        ) -> list[str]:
+        """Generate answers (single or multiple) for multiple questions.
+        Each model forward pass will be batched by num_generations.
+
+        Args:
+            text_inputs (Iterable[str]): list of text to use as input for the model
+            num_generations (int): number of generations total for each input
 
         Returns:
-            text_outputs (list[str]): list of generated text with
+            text_outputs (list[str]): list of generated text. The list has
                 len num_generations * num_questions
         """
-        raise NotImplementedError
+        if isinstance(text_inputs, str):
+            text_inputs = [text_inputs]
+
+        if not isinstance(text_inputs, Iterable):
+            raise ValueError(f'text_inputs must be an iterable, not "{type(text_inputs)}"')
+        if not all(isinstance(text, str) for text in text_inputs):
+            raise ValueError('text_inputs must be an iterable of strings')
+        if num_generations < 1:
+            raise ValueError(f'num_generations must be >= 1')
+
+        batched_text_inputs = []
+        for text in text_inputs:
+            batched_text_inputs += [text] * num_generations
+
+        encoded_inputs = self.tokenizer(
+            batched_text_inputs, return_tensors='pt'
+        ).to(self.model.device)
+
+        with torch.inference_mode():
+            outputs = self.model.generate(
+                **encoded_inputs,
+                generation_config=self.gen_config,
+            )
+
+        text_outputs = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+
+        assert len(text_outputs) == len(batched_text_inputs)
+
+        # Remove everything before and including the text_input
+        text_generations = []
+        for text_input, text_output in zip(batched_text_inputs, text_outputs):
+            start_index = text_output.index(text_input) + len(text_input)
+            text_generations.append(text_output[start_index:])
+
+        return text_generations
