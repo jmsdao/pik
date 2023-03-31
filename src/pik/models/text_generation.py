@@ -54,16 +54,16 @@ class TextGenerator:
     def generate(self,
             text_input: str,
             num_generations: int = 1,
-            generations_per_pass: int = 1,
+            batchsize_per_pass: int = 1,
         ) -> list[str]:
         """Generate answers (single or multiple) for one question.
-        Each model forward pass will be batched by generations_per_pass (at most).
+        Each model forward pass will be batched by batchsize_per_pass (at most).
         
         Args:
             text_input (str): text to use as input for the model
             num_generations (int): number of generations total for the given input
-            generations_per_pass (int): number of generations to make per pass
-                For example, if num_generations=40 and generations_per_pass=15, then
+            batchsize_per_pass (int): max batch size per model forward pass
+                For example, if num_generations=40 and batchsize_per_pass=15, then
                 batch sizes will be [15, 15, 10]
 
         Returns:
@@ -72,18 +72,18 @@ class TextGenerator:
         """
         if not isinstance(text_input, str):
             raise ValueError(f'text_input must be a string, not "{type(text_input)}"')
-        if num_generations < 1 or generations_per_pass < 1:
-            raise ValueError('num_generations and generations_per_pass must be >= 1')
+        if num_generations < 1 or batchsize_per_pass < 1:
+            raise ValueError('num_generations and batchsize_per_pass must be >= 1')
 
         if self.generation_seed:
             torch.manual_seed(self.generation_seed)
 
-        generations_per_pass = min(generations_per_pass, num_generations)
+        batchsize_per_pass = min(batchsize_per_pass, num_generations)
 
         # Calculate batch sizes used for each pass
-        batch_sizes = [generations_per_pass] * (num_generations // generations_per_pass)
-        if num_generations % generations_per_pass != 0:
-            batch_sizes.append(num_generations % generations_per_pass)
+        batch_sizes = [batchsize_per_pass] * (num_generations // batchsize_per_pass)
+        if num_generations % batchsize_per_pass != 0:
+            batch_sizes.append(num_generations % batchsize_per_pass)
 
         # Generate text
         text_outputs = []
