@@ -1,4 +1,5 @@
 import sys
+import shutil
 from time import time
 from pathlib import Path
 import argparse
@@ -15,8 +16,10 @@ from pik.datasets.utils import get_data_ids
 
 
 class Timer:
+    """Context manager for timing code."""
     def __init__(self, print_template):
         self.print_template = print_template
+        self.start = 0
            
     def __enter__(self):
         self.start = time()
@@ -78,6 +81,27 @@ def check_local_paths_exists(filepaths: list[Path]) -> None:
         sys.exit()
 
 
+def save_results_locally(
+    args: argparse.Namespace,
+    config: dict,
+    text_gens: pd.DataFrame,
+    qa_pairs: pd.DataFrame,
+) -> None:
+    """Save results locally."""
+    local_dir = config['results']['dir']['local']
+
+    shutil.copy(args.config, Path(local_dir))
+    text_gens.to_csv(
+        Path(local_dir) / config['results']['files']['text_generations'],
+        index=False
+    )
+    qa_pairs['qid'] = qa_pairs['qid'].astype(int)
+    qa_pairs.to_csv(
+        Path(local_dir) / config['results']['files']['qa_pairs'],
+        index=False
+    )
+
+
 if __name__ == '__main__':
     args = parse_args()
 
@@ -88,12 +112,14 @@ if __name__ == '__main__':
 
     if args.estimate:
         print('Estimating runtime...')
+    else:
+        print('Running experiment...')
 
     # local_dir checks
     local_dir = config['results']['dir'].get('local', None)
-    if local_dir:
+    if local_dir and not args.estimate:
         validate_local_dir(local_dir)
-        output_filepaths = []
+        output_filepaths = [Path(local_dir) / Path(args.config).name]
         for filename in config['results']['files'].values():
             output_filepaths.append(Path(local_dir) / filename)
         check_local_paths_exists(output_filepaths)
@@ -176,15 +202,15 @@ if __name__ == '__main__':
         )
 
         if local_dir:
-            print(f'Output files to be saved to local disk:')
+            print('Output files to be saved to local disk:')
             for filename in config['results']['files'].values():
                 print(f'  {Path(local_dir) / filename}')
-            print(f'--------------------------------------------------------------------')
+            print(f'  {Path(local_dir) / Path(args.config).name}')
+            print('--------------------------------------------------------------------')
 
         sys.exit()
 
     # Run the experiment
-    print('Running experiment...')
     text_gens = pd.DataFrame()
     qa_pairs = pd.DataFrame()
 
@@ -219,25 +245,9 @@ if __name__ == '__main__':
         # Periodically save results
         if (i + 1) % config['results']['save_frequency'] == 0:
             if local_dir:
-                text_gens.to_csv(
-                    Path(local_dir) / config['results']['files']['text_generations'],
-                    index=False
-                )
-                qa_pairs['qid'] = qa_pairs['qid'].astype(int)
-                qa_pairs.to_csv(
-                    Path(local_dir) / config['results']['files']['qa_pairs'],
-                    index=False
-                )
+                save_results_locally(args, config, text_gens, qa_pairs)
 
     # Save final results
     if local_dir:
         print(f'Saving final results to {local_dir}')
-        text_gens.to_csv(
-            Path(local_dir) / config['results']['files']['text_generations'],
-            index=False
-        )
-        qa_pairs['qid'] = qa_pairs['qid'].astype(int)
-        qa_pairs.to_csv(
-            Path(local_dir) / config['results']['files']['qa_pairs'],
-            index=False
-        )
+        save_results_locally(args, config, text_gens, qa_pairs)

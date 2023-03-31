@@ -6,7 +6,7 @@ dataset:
   name: trivia_qa  # Required (str)
   num_questions: 5  # Required (int or "all")
   shuffle: True  # Required (bool)
-  seed: 42  # Options (int or None): seed used to shuffle the dataset
+  seed: 42  # Optional (int or None): seed used to shuffle the dataset, ignored if shuffle is False
 
 
 generation:
@@ -24,11 +24,10 @@ generation:
 
 results:
   dir:
-    local: ./results  # Required (str) if s3 is not specified, otherwise optional
-    # s3: s3://my-bucket/results  # Required (str) if local is not specified, otherwise optional
+    local: ./results  # Required (dir) if s3 is not specified, otherwise optional
+    # s3: s3://my-bucket/results  # Required (s3 url) if local is not specified, otherwise optional
   files:
     text_generations: text_generations.csv  # Required (str)
-    config_archive: config.yaml  # Required (str)
     qa_pairs: qa_pairs.csv  # Required (str)
   save_frequency: 3  # Optional (int): save results every N questions, otherwise only save at the end
 
@@ -39,5 +38,5 @@ results:
 # See here: https://yaml-multiline.info/
 prompt_template: |-
   Question: {}
-  Answer: 
+  Answer:
 # End of YAML file
