@@ -1,34 +1,36 @@
 cli: generate_answers  # Required (str): which CLI this config is for
 
+
 model: test  # Required (str)
-
-
 dataset:
   name: trivia_qa  # Required (str)
   num_questions: 5  # Required (int or "all")
-  shuffle_dataset: True  # Required (bool)
-  shuffle_seed: 42  # Required (int) if shuffle_dataset is True, otherwise ignored
+  shuffle: True  # Required (bool)
+  seed: 42  # Options (int or None): seed used to shuffle the dataset
 
 
 generation:
   seed: 1337  # Optional (int): random seed for reproducibility, set before each question
   generations_per_question: 2  # Required (int)
   batchsize_per_pass: 2  # Required (int): max batch size per model forward pass
-  
   config:  # Optional (dict): overrides for model's GenerationConfig
   # For more details, see: https://huggingface.co/transformers/main_classes/model.html#transformers.generation.GenerationConfig-
     max_new_tokens: 16
     do_sample: True
     temperature: 1
-    eos_token_id: 13  # Stop generating after a newline (LLaMA's token ID)
+    eos_token_id: 198  # Stop generating when a gpt2's newline is generated
+    pad_token_id: 50256
 
 
 results:
-  filename: text_generations.csv  # Required (str)
-  save_frequency: 3  # Optional (int): save results after every N questions
-  local_dir: ./results  # Optional (str): will not save results here if not specified
-                        # Path is relative to pwd when you run the CLI
-  # s3_dir: s3://my-bucket/results  # Optional (str): will not save results here if not specified
+  dir:
+    local: ./results  # Required (str) if s3 is not specified, otherwise optional
+    # s3: s3://my-bucket/results  # Required (str) if local is not specified, otherwise optional
+  files:
+    text_generations: text_generations.csv  # Required (str)
+    config_archive: config.yaml  # Required (str)
+    qa_pairs: qa_pairs.csv  # Required (str)
+  save_frequency: 3  # Optional (int): save results every N questions, otherwise only save at the end
 
 
 # Required (str): must include a "{}" to replace with a question

@@ -14,7 +14,7 @@ def get_data_ids(
         dataset: anything with a __len__ method implemented
         num_items (int | str): number of data ids to return. Set to 'all' to return all data ids
         shuffle (bool): whether to shuffle the data ids
-        shuffle_seed (int): seed for random number generator
+        shuffle_seed (int): seed used for shuffling the data ids
 
     Returns:
         data_ids (list[int]): list of data ids

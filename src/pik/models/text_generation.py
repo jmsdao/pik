@@ -105,7 +105,7 @@ class TextGenerator:
         assert len(text_outputs) == num_generations
 
         # Remove everything before and including the text_input
-        start_index = text_outputs[0].index(text_input) + len(text_input)
+        start_index = text_outputs[0].find(text_input) + len(text_input)
         text_generations = [text_output[start_index:] for text_output in text_outputs]
 
         return text_generations
@@ -156,7 +156,7 @@ class TextGenerator:
         # Remove everything before and including the text_input
         text_generations = []
         for text_input, text_output in zip(batched_text_inputs, text_outputs):
-            start_index = text_output.index(text_input) + len(text_input)
+            start_index = text_output.find(text_input) + len(text_input)
             text_generations.append(text_output[start_index:])
 
         return text_generations
