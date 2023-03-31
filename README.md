@@ -16,7 +16,7 @@ cd pik
 
 Install the conda environment (use mamba, it's much faster than conda) and activate it:
 ```
-mamba env create -f environment.yml
+mamba env create -f environment.yaml
 conda activate pik
 ```
 

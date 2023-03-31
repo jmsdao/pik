@@ -73,7 +73,7 @@ class TextGenerator:
         if not isinstance(text_input, str):
             raise ValueError(f'text_input must be a string, not "{type(text_input)}"')
         if num_generations < 1 or generations_per_pass < 1:
-            raise ValueError(f'num_generations and generations_per_pass must be >= 1')
+            raise ValueError('num_generations and generations_per_pass must be >= 1')
 
         if self.generation_seed:
             torch.manual_seed(self.generation_seed)
@@ -133,7 +133,7 @@ class TextGenerator:
         if not all(isinstance(text, str) for text in text_inputs):
             raise ValueError('text_inputs must be an iterable of strings')
         if num_generations < 1:
-            raise ValueError(f'num_generations must be >= 1')
+            raise ValueError('num_generations must be >= 1')
 
         batched_text_inputs = []
         for text in text_inputs:
