@@ -5,6 +5,7 @@ from transformers import GenerationConfig
 
 def _get_default_generation_config(tokenizer) -> GenerationConfig:
     """Returns a default generation config for a given tokenizer."""
+
     if 'gpt2' in str(tokenizer.__class__):
         return GenerationConfig(
             max_new_tokens=16,
@@ -48,7 +49,8 @@ class TextGenerator:
                 batch sizes will be [15, 15, 10]
 
         Returns:
-            text_outputs (list[str]): list of generated text with len num_generations
+            text_outputs (list[str]): list of generated text with len num_generations.
+                Everything before and including the text_input is removed from each output.
         """
         if not isinstance(text_input, str):
             raise ValueError(f'text_input must be a string, not "{type(text_input)}"')
@@ -56,20 +58,20 @@ class TextGenerator:
         if self.generation_seed:
             torch.manual_seed(self.generation_seed)
 
-        if generations_per_pass > num_generations:
-            generations_per_pass = num_generations
+        generations_per_pass = min(generations_per_pass, num_generations)
 
+        # Calculate batch sizes used for each pass
         batch_sizes = [generations_per_pass] * (num_generations // generations_per_pass)
         if num_generations % generations_per_pass != 0:
             batch_sizes.append(num_generations % generations_per_pass)
 
+        # Generate text
         text_outputs = []
 
         for batch_size in batch_sizes:
             batched_text_input = [text_input] * batch_size
             encoded_inputs = self.tokenizer(
-                batched_text_input,
-                return_tensors='pt'
+                batched_text_input, return_tensors='pt'
             ).to(self.model.device)
 
             with torch.inference_mode():
@@ -80,6 +82,9 @@ class TextGenerator:
 
             text_outputs.extend(self.tokenizer.batch_decode(outputs, skip_special_tokens=True))
 
+        assert len(text_outputs) == num_generations
+
+        # Remove everything before and including the text_input
         start_index = text_outputs[0].index(text_input) + len(text_input)
         text_generations = [text_output[start_index:] for text_output in text_outputs]
 
@@ -87,7 +92,8 @@ class TextGenerator:
 
     def generate_multi(self) -> list[str]:
         """Generate multiple answers for multiple questions.
-        
+        TODO
+
         Returns:
             text_outputs (list[str]): list of generated text with
                 len num_generations * num_questions

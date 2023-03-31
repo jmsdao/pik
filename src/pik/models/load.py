@@ -8,16 +8,16 @@ from huggingface_hub import snapshot_download
 
 
 SMALL_MODELS = ['gpt2']
-LARGE_MODELS = ['llama-7b']
+LARGE_MODELS = ['llama-7b', 'llama-13b', 'llama-30b', 'llama-65b']
 IMPLEMENTED_MODELS = SMALL_MODELS + LARGE_MODELS
 
 
 def load_model_and_tokenizer(model_name: str) -> tuple:
-    """Loads a model and tokenizer from the HuggingFace model hub.
+    """Syntactic sugar for loading a model and tokenizer from the HuggingFace model hub.
     
     Args:
         model_name (str): Name of the model to load. Must be one of:
-            ['test', 'gpt2', 'llama-7b']
+            ['test', 'gpt2', 'llama-7b', 'llama-13b', 'llama-30b', 'llama-65b']
 
     Returns (tuple):
         model: Model loaded from the HuggingFace model hub
@@ -45,8 +45,8 @@ def load_model_and_tokenizer(model_name: str) -> tuple:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     # Code block for loading llama models
-    elif model_name == 'llama-7b':
-        checkpoint_location = snapshot_download("decapoda-research/llama-7b-hf")
+    elif 'llama' in model_name:
+        checkpoint_location = snapshot_download(f"decapoda-research/{model_name}-hf")
 
         with init_empty_weights():
             model = LlamaForCausalLM.from_pretrained(checkpoint_location)
