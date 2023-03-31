@@ -34,6 +34,23 @@ class TextGenerator:
         if gen_config is None:
             self.gen_config = _get_default_generation_config(tokenizer)
 
+    @staticmethod
+    def prompt_engineer(prompt_template: str, prompt: str) -> str:
+        """Engineers a prompt for a model.
+
+        Args:
+            prompt_template (str): text to prepend to the prompt, must
+                contain a "{}" to be replaced
+            prompt (str): text to use as the prompt
+
+        Returns:
+            engineered_prompt (str): text to use as the prompt
+        """
+        if r'{}' not in prompt_template:
+            raise ValueError(r'prompt_template must contain a "{}"')
+
+        return prompt_template.format(prompt)
+
     def generate(self,
             text_input: str,
             num_generations: int = 1,
