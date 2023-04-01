@@ -29,9 +29,7 @@ def get_data_ids(
         torch.manual_seed(shuffle_seed)
 
     if shuffle:
-        data_ids = (
-            torch.randperm(len(dataset))[:num_items].cpu().numpy().tolist()
-        )
+        data_ids = torch.randperm(len(dataset))[:num_items].cpu().numpy().tolist()
     else:
         data_ids = list(range(num_items))
 

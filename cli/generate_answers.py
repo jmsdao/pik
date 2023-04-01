@@ -217,6 +217,7 @@ if __name__ == "__main__":
         sys.exit()
 
     # Run the experiment
+    save_frequency = config["results"].get("save_frequency", None)
     text_gens = pd.DataFrame()
     qa_pairs = pd.DataFrame()
 
@@ -247,7 +248,7 @@ if __name__ == "__main__":
         text_gens = pd.concat([text_gens, df], ignore_index=True)
 
         # Periodically save results
-        if (i + 1) % config["results"]["save_frequency"] == 0:
+        if save_frequency and (i + 1) % save_frequency == 0:
             if local_dir:
                 save_results_locally(args, config, text_gens, qa_pairs)
 
