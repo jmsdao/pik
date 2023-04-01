@@ -1,10 +1,8 @@
+"""
+This script uses conditional imports to minimize slow imports.
+"""
+
 import torch
-from transformers import (
-    AutoModelForCausalLM, AutoTokenizer, AutoConfig,
-    LlamaForCausalLM, LlamaTokenizer,
-)
-from accelerate import init_empty_weights, load_checkpoint_and_dispatch
-from huggingface_hub import snapshot_download
 
 
 SMALL_MODELS = ["gpt2"]
@@ -35,17 +33,25 @@ def load_model_and_tokenizer(model_name: str) -> tuple:
 
     # Load a small model without downloading files for testing
     if model_name == "test":
+        from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+
         config = AutoConfig.from_pretrained("gpt2")
         model = AutoModelForCausalLM.from_config(config).to(device)
         tokenizer = AutoTokenizer.from_pretrained("gpt2")
 
     # Code block for loading small models
     elif model_name in SMALL_MODELS:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
         model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     # Code block for loading llama models
     elif "llama" in model_name:
+        from transformers import LlamaForCausalLM, LlamaTokenizer
+        from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+        from huggingface_hub import snapshot_download
+
         checkpoint_location = snapshot_download(f"decapoda-research/{model_name}-hf")
 
         with init_empty_weights():

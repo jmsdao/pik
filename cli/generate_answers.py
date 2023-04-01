@@ -115,9 +115,9 @@ if __name__ == "__main__":
     validate_config(config.get("cli", None))
 
     if args.estimate:
-        print("Estimating runtime...")
+        print(f"Estimating runtime of full experiment from config {args.config}")
     else:
-        print("Running experiment...")
+        print(f"Running experiment using config {args.config}")
 
     # local_dir checks
     local_dir = config["results"]["dir"].get("local", None)
@@ -140,6 +140,7 @@ if __name__ == "__main__":
     print(f'Loading model "{model_name}"...')
     with Timer("Loaded model in {}"):
         model, tokenizer = load_model_and_tokenizer(model_name)
+
     text_generator = TextGenerator(
         model,
         tokenizer,
@@ -153,7 +154,7 @@ if __name__ == "__main__":
     with Timer("Loaded dataset in {}"):
         dataset, eval_fn = load_dataset_and_eval_fn(dataset_name)
 
-    # Get data ids of questions to process
+    # Get question ids of questions to process
     num_questions = config["dataset"]["num_questions"]
     qids = get_data_ids(
         dataset,
@@ -163,7 +164,7 @@ if __name__ == "__main__":
         shuffle_seed=config["dataset"]["seed"],
     )
 
-    # Grab  repeated parameters from config
+    # Grab repeated parameters from config
     generations_per_question = config["generation"]["generations_per_question"]
     batchsize_per_pass = config["generation"]["batchsize_per_pass"]
     max_new_tokens = config["generation"]["config"]["max_new_tokens"]
@@ -189,8 +190,8 @@ if __name__ == "__main__":
 
         time_taken = time() - start
 
+        print("-" * 80)
         print(
-            f"--------------------------------------------------------------------\n"
             f"Estimation parameters:\n"
             f"Num questions processed = {N_TESTS}\n"
             f"Generations per question = {generations_per_question}\n"
@@ -202,18 +203,16 @@ if __name__ == "__main__":
             f"\n"
             f"Estimated duration to process {num_questions} questions:\n"
             f"{(time_taken / N_TESTS) * num_questions / 3600 :.3f} hours\n\n"
-            f"Note: does not include time taken to write to disk or upload to s3\n"
-            f"--------------------------------------------------------------------"
+            f"Note: does not include time taken to write to disk or upload to s3"
         )
+        print("-" * 80)
 
         if local_dir:
             print("Output files to be saved to local disk:")
             for filename in config["results"]["files"].values():
                 print(f"  {Path(local_dir) / filename}")
             print(f"  {Path(local_dir) / Path(args.config).name}")
-            print(
-                "--------------------------------------------------------------------"
-            )
+            print("-" * 80)
 
         sys.exit()
 
@@ -263,3 +262,5 @@ if __name__ == "__main__":
     if local_dir:
         print(f"Saving final results to {local_dir}")
         save_results_locally(args, config, text_gens, qa_pairs)
+
+    print("Success!")
