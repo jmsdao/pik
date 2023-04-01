@@ -9,10 +9,12 @@ LOADING_SCRIPT = Path(__file__).parent / "loading.py"
 
 class TriviaQADataset(Dataset):
     """Creates a PyTorch Dataset for the TriviaQA dataset."""
-    def __init__(self,
+
+    def __init__(
+        self,
         loading_script=str(LOADING_SCRIPT),
-        name='rc.nocontext',
-        split='validation',
+        name="rc.nocontext",
+        split="validation",
     ):
         if not Path(loading_script).exists():
             raise FileNotFoundError(f'Loading script not found at "{loading_script}"')
@@ -34,6 +36,6 @@ class TriviaQADataset(Dataset):
             answer_aliases (list[str]): list of strings of possible answers
         """
         return (
-            self.dataset[key]['question'],  # type: ignore
-            self.dataset[key]['answer']['normalized_aliases']  # type: ignore
+            self.dataset[key]["question"],  # type: ignore
+            self.dataset[key]["answer"]["normalized_aliases"],  # type: ignore
         )

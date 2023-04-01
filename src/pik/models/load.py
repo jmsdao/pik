@@ -14,7 +14,7 @@ IMPLEMENTED_MODELS = SMALL_MODELS + LARGE_MODELS
 
 def load_model_and_tokenizer(model_name: str) -> tuple:
     """Syntactic sugar for loading a model and tokenizer from the HuggingFace model hub.
-    
+
     Args:
         model_name (str): Name of the model to load. Must be one of:
             ['test', 'gpt2', 'llama-7b', 'llama-13b', 'llama-30b', 'llama-65b']
@@ -55,7 +55,7 @@ def load_model_and_tokenizer(model_name: str) -> tuple:
             model,  # type: ignore
             checkpoint_location,
             device_map="auto",
-            dtype=torch.float16,  # pylint: disable=no-member
+            dtype=torch.float16,
             no_split_module_classes=["LlamaDecoderLayer"],
         )
         tokenizer = LlamaTokenizer.from_pretrained(checkpoint_location)

@@ -1,5 +1,5 @@
+# flake8: noqa
 # type: ignore
-# pylint: skip-file
 """Original script from: https://huggingface.co/datasets/trivia_qa/blob/main/trivia_qa.py
 Edited so only the validation set is extracted.
 """

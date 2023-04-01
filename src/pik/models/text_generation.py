@@ -6,13 +6,13 @@ from transformers import GenerationConfig
 def _get_default_generation_config(tokenizer) -> GenerationConfig:
     """Returns a default generation config for a given tokenizer."""
 
-    if 'gpt2' in str(tokenizer.__class__):
+    if "gpt2" in str(tokenizer.__class__):
         return GenerationConfig(
             max_new_tokens=16,
             do_sample=True,
             temperature=1,
             pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=tokenizer('\n')['input_ids'][0],
+            eos_token_id=tokenizer("\n")["input_ids"][0],
         )
 
     raise ValueError(f'No default generation config for tokenizer "{tokenizer}"')
@@ -20,7 +20,9 @@ def _get_default_generation_config(tokenizer) -> GenerationConfig:
 
 class TextGenerator:
     """Generates text using a model."""
-    def __init__(self,
+
+    def __init__(
+        self,
         model,
         tokenizer,
         gen_config: Optional[GenerationConfig] = None,
@@ -46,19 +48,20 @@ class TextGenerator:
         Returns:
             engineered_prompt (str): text to use as the prompt
         """
-        if r'{}' not in prompt_template:
+        if r"{}" not in prompt_template:
             raise ValueError(r'prompt_template must contain a "{}"')
 
         return prompt_template.format(prompt)
 
-    def generate(self,
-            text_input: str,
-            num_generations: int = 1,
-            batchsize_per_pass: int = 1,
-        ) -> list[str]:
+    def generate(
+        self,
+        text_input: str,
+        num_generations: int = 1,
+        batchsize_per_pass: int = 1,
+    ) -> list[str]:
         """Generate answers (single or multiple) for one question.
         Each model forward pass will be batched by batchsize_per_pass (at most).
-        
+
         Args:
             text_input (str): text to use as input for the model
             num_generations (int): number of generations total for the given input
@@ -73,7 +76,7 @@ class TextGenerator:
         if not isinstance(text_input, str):
             raise ValueError(f'text_input must be a string, not "{type(text_input)}"')
         if num_generations < 1 or batchsize_per_pass < 1:
-            raise ValueError('num_generations and batchsize_per_pass must be >= 1')
+            raise ValueError("num_generations and batchsize_per_pass must be >= 1")
 
         if self.generation_seed:
             torch.manual_seed(self.generation_seed)
@@ -90,9 +93,8 @@ class TextGenerator:
 
         for batch_size in batch_sizes:
             batched_text_input = [text_input] * batch_size
-            encoded_inputs = self.tokenizer(
-                batched_text_input, return_tensors='pt'
-            ).to(self.model.device)
+            encoded_inputs = self.tokenizer(batched_text_input, return_tensors="pt")
+            encoded_inputs = encoded_inputs.to(self.model.device)
 
             with torch.inference_mode():
                 outputs = self.model.generate(
@@ -100,7 +102,9 @@ class TextGenerator:
                     generation_config=self.gen_config,
                 )
 
-            text_outputs.extend(self.tokenizer.batch_decode(outputs, skip_special_tokens=True))
+            text_outputs.extend(
+                self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+            )
 
         assert len(text_outputs) == num_generations
 
@@ -110,10 +114,11 @@ class TextGenerator:
 
         return text_generations
 
-    def generate_multi(self,
-            text_inputs: Union[str, Iterable[str]],
-            num_generations: int = 1,
-        ) -> list[str]:
+    def generate_multi(
+        self,
+        text_inputs: Union[str, Iterable[str]],
+        num_generations: int = 1,
+    ) -> list[str]:
         """Generate answers (single or multiple) for multiple questions.
         Each model forward pass will be batched by num_generations.
 
@@ -129,19 +134,20 @@ class TextGenerator:
             text_inputs = [text_inputs]
 
         if not isinstance(text_inputs, Iterable):
-            raise ValueError(f'text_inputs must be an iterable, not "{type(text_inputs)}"')
+            raise ValueError(
+                f'text_inputs must be an iterable, not "{type(text_inputs)}"'
+            )
         if not all(isinstance(text, str) for text in text_inputs):
-            raise ValueError('text_inputs must be an iterable of strings')
+            raise ValueError("text_inputs must be an iterable of strings")
         if num_generations < 1:
-            raise ValueError('num_generations must be >= 1')
+            raise ValueError("num_generations must be >= 1")
 
         batched_text_inputs = []
         for text in text_inputs:
             batched_text_inputs += [text] * num_generations
 
-        encoded_inputs = self.tokenizer(
-            batched_text_inputs, return_tensors='pt'
-        ).to(self.model.device)
+        encoded_inputs = self.tokenizer(batched_text_inputs, return_tensors="pt")
+        encoded_inputs = encoded_inputs.to(self.model.device)
 
         with torch.inference_mode():
             outputs = self.model.generate(
