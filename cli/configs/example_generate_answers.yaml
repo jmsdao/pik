@@ -16,7 +16,7 @@ generation:
   generations_per_question: 2  # Required (int)
   batchsize_per_pass: 2  # Required (int): max batch size per model forward pass
   config:  # Required (dict): overrides for model's GenerationConfig
-  # For more details, see: https://huggingface.co/transformers/main_classes/model.html#transformers.generation.GenerationConfig-
+           # For more details, see: https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
     max_new_tokens: 16
     do_sample: True
     temperature: 1
