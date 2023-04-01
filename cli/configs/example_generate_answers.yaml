@@ -8,13 +8,14 @@ dataset:
   skip: 0  # Optional (int): skip the first N questions
   shuffle: True  # Required (bool)
   seed: 42  # Optional (int or None): seed used to shuffle the dataset, ignored if shuffle is False
-
-
+  # ids_file: nums.txt  # Optional (str): path to file containing question ids to index the dataset
+                      # If used, num_questions, skip, shuffle and seed are ignored
+                      # Integers in file can be separated by newlines, spaces or commas
 generation:
   seed: 1337  # Optional (int): random seed for reproducibility, set before each question
   generations_per_question: 2  # Required (int)
   batchsize_per_pass: 2  # Required (int): max batch size per model forward pass
-  config:  # Optional (dict): overrides for model's GenerationConfig
+  config:  # Required (dict): overrides for model's GenerationConfig
   # For more details, see: https://huggingface.co/transformers/main_classes/model.html#transformers.generation.GenerationConfig-
     max_new_tokens: 16
     do_sample: True
@@ -30,13 +31,13 @@ results:
   files:
     text_generations: text_generations.csv  # Required (str)
     qa_pairs: qa_pairs.csv  # Required (str)
-  save_frequency: 3  # Optional (int): save results every N questions, otherwise only save at the end
+  save_frequency: 2  # Optional (int): save results every N questions, otherwise only save at the end
 
 
 # Required (str): must include a "{}" to replace with a question
 # Newlines and trailing whitespaces are preserved
 # Left side identation, and end of string newline are ignored
-# See here: https://yaml-multiline.info/
+# For more details, see: https://yaml-multiline.info/
 prompt_template: |-
   Question: {}
   Answer:

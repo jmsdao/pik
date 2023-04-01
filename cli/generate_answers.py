@@ -12,7 +12,7 @@ from transformers import GenerationConfig
 from pik.models import load_model_and_tokenizer
 from pik.models.text_generation import TextGenerator
 from pik.datasets import load_dataset_and_eval_fn
-from pik.datasets.utils import get_data_ids
+from pik.datasets.utils import get_data_ids, get_data_ids_from_file
 
 
 N_TESTS = 3  # Number of questions to process when estimating
@@ -77,6 +77,21 @@ def validate_local_dir(local_dir: str) -> None:
             sys.exit()
 
 
+def validate_file(file: str) -> None:
+    """Validate file exists and is readable."""
+    if file:
+        path = Path(file)
+        if not path.exists():
+            print(f'Error: file "{path}" does not exist')
+            sys.exit()
+        if not path.is_file():
+            print(f'Error: file "{path}" is not a file')
+            sys.exit()
+        if not path.open().readable():
+            print(f'Error: file "{path}" is not readable')
+            sys.exit()
+
+
 def check_local_paths_exists(filepaths: list[Path]) -> None:
     """Alert user if any local filepaths already exist."""
     existing_paths = [path for path in filepaths if path.exists()]
@@ -114,6 +129,10 @@ if __name__ == "__main__":
 
     validate_config(config.get("cli", None))
 
+    # Validate ids_file path if specified
+    ids_file = config["dataset"].get("ids_file", None)
+    validate_file(ids_file)
+
     if args.estimate:
         print(f"Estimating runtime of full experiment from config {args.config}")
     else:
@@ -145,7 +164,7 @@ if __name__ == "__main__":
         model,
         tokenizer,
         gen_config=GenerationConfig(**config["generation"]["config"]),
-        generation_seed=config["generation"]["seed"],
+        generation_seed=config["generation"].get("seed", None),
     )
 
     # Load dataset and its evaluation function
@@ -155,14 +174,18 @@ if __name__ == "__main__":
         dataset, eval_fn = load_dataset_and_eval_fn(dataset_name)
 
     # Get question ids of questions to process
-    num_questions = config["dataset"]["num_questions"]
-    qids = get_data_ids(
-        dataset,
-        num_items=num_questions,
-        skip=config["dataset"]["skip"],
-        shuffle=config["dataset"]["shuffle"],
-        shuffle_seed=config["dataset"]["seed"],
-    )
+    if ids_file:
+        qids = get_data_ids_from_file(dataset, ids_file)
+        num_questions = len(qids)
+    else:
+        num_questions = config["dataset"]["num_questions"]
+        qids = get_data_ids(
+            dataset,
+            num_items=num_questions,
+            skip=config["dataset"]["skip"],
+            shuffle=config["dataset"]["shuffle"],
+            shuffle_seed=config["dataset"]["seed"],
+        )
 
     # Grab repeated parameters from config
     generations_per_question = config["generation"]["generations_per_question"]
