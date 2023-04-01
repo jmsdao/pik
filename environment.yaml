@@ -9,6 +9,8 @@ dependencies:
   - accelerate
   - sentencepiece
   - pytorch 
+  - boto3
+  - python-dotenv
   - pip
   - pip:
     - git+https://github.com/huggingface/transformers.git@60d51ef5123d949fd8c59cd4d3254e711541d278
