@@ -5,6 +5,7 @@ model: test  # Required (str)
 dataset:
   name: trivia_qa  # Required (str)
   num_questions: 5  # Required (int or "all")
+  skip: 0  # Optional (int): skip the first N questions
   shuffle: True  # Required (bool)
   seed: 42  # Optional (int or None): seed used to shuffle the dataset, ignored if shuffle is False
 

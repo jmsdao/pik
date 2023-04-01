@@ -158,6 +158,7 @@ if __name__ == "__main__":
     qids = get_data_ids(
         dataset,
         num_items=num_questions,
+        skip=config["dataset"]["skip"],
         shuffle=config["dataset"]["shuffle"],
         shuffle_seed=config["dataset"]["seed"],
     )
@@ -217,9 +218,10 @@ if __name__ == "__main__":
         sys.exit()
 
     # Run the experiment
-    save_frequency = config["results"].get("save_frequency", None)
     text_gens = pd.DataFrame()
     qa_pairs = pd.DataFrame()
+
+    save_frequency = config["results"].get("save_frequency", None)
 
     progress_bar = trange(num_questions)
     for i in progress_bar:
@@ -246,6 +248,11 @@ if __name__ == "__main__":
         df["model_answer"] = text_outputs
         df["evaluation"] = evaluations
         text_gens = pd.concat([text_gens, df], ignore_index=True)
+
+        # Update progress bar
+        progress_bar.set_description(
+            f'Last qid={qids[i]}, mean_eval={df["evaluation"].mean() :.2f}'
+        )
 
         # Periodically save results
         if save_frequency and (i + 1) % save_frequency == 0:
