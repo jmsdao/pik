@@ -64,7 +64,7 @@ def validate_config(cli: str) -> None:
     if not cli:
         print('Error: config file does not specify "cli"')
         sys.exit()
-    elif cli != "generate_answers":
+    elif cli not in ["generate_answers", "gen-answers"]:
         print(f'Error: config file is for "{cli}"')
         sys.exit()
 
@@ -260,7 +260,7 @@ def save_results_s3(
         print("Continuing...")
 
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
 
     with open(args.config, "r", encoding="utf-8") as fh:
@@ -451,3 +451,7 @@ if __name__ == "__main__":
         save_results_s3(args, config, text_gens, qa_pairs)
 
     print("Success!")
+
+
+if __name__ == "__main__":
+    main()

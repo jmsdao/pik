@@ -19,13 +19,13 @@ def _get_default_generation_config(tokenizer) -> GenerationConfig:
 
 
 class TextGenerator:
-    """Generates text using a model."""
+    """Handy wrapper for text generation."""
 
     def __init__(
         self,
         model,
         tokenizer,
-        gen_config: Optional[GenerationConfig] = None,
+        gen_config: Optional[Union[dict, GenerationConfig]] = None,
         generation_seed: Optional[int] = None,
     ):
         self.model = model
@@ -35,6 +35,8 @@ class TextGenerator:
 
         if gen_config is None:
             self.gen_config = _get_default_generation_config(tokenizer)
+        if isinstance(gen_config, dict):
+            self.gen_config = GenerationConfig(**gen_config)
 
     @staticmethod
     def prompt_engineer(prompt_template: str, prompt: str) -> str:
@@ -59,7 +61,7 @@ class TextGenerator:
         num_generations: int = 1,
         batchsize_per_pass: int = 1,
     ) -> list[str]:
-        """Generate answers (single or multiple) for one question.
+        """Generate one or more answers for one question.
         Each model forward pass will be batched by batchsize_per_pass (at most).
 
         Args:

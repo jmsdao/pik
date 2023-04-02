@@ -33,15 +33,18 @@ python
 PosixPath('/<abs_path_to>/pik')
 ```
 
+### Credentials
+If you're planning to use S3 functionality, make sure you add your AWS credentials to the `.env` file.
+
 ---
 
 ## CLI Usage Examples
 
 ```bash
 # Estimate runtime of an experiment defined by the config
-python cli/generate_answers.py --estimate cli/configs/example_generate_answers.yaml
+gen-answers --estimate configs/example-gen-answers.yaml
 # Run the experiment
-python cli/generate_answers.py cli/configs/example_generate_answers.yaml
+gen-answers configs/example-gen-answers.yaml
 ```
 
 ---
@@ -60,6 +63,6 @@ model, tokenizer = load_model_and_tokenizer("gpt2")
 tg = TextGenerator(model, tokenizer)
 question, answer = dataset[0]
 
-model_answers = tg.generate(question)
+model_answers = tg.generate(question, num_generations=5)
 eval_fn(model_answers, anwser)  # returns list[int]: 1 if correct, 0 otherwise
 ```

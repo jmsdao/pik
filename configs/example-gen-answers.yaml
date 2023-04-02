@@ -1,4 +1,4 @@
-cli: generate_answers  # Required (str): which CLI this config is for
+cli: gen-answers  # Required (str): which CLI this config is for
 
 
 model: test  # Required (str)
