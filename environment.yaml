@@ -1,8 +1,9 @@
 name: pik
 channels:
+  - anaconda
   - conda-forge
-  - pytorch
   - defaults
+  - pytorch
 dependencies:
   - python=3.9
   - datasets
@@ -11,6 +12,9 @@ dependencies:
   - pytorch 
   - boto3
   - python-dotenv
+  - pytest
   - pip
   - pip:
     - git+https://github.com/huggingface/transformers.git@60d51ef5123d949fd8c59cd4d3254e711541d278
+    # This is a commit hash for transformers that has a LLaMA implementation
+    # TODO: change this to a release version once it's available
