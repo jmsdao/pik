@@ -29,25 +29,34 @@ def normalize_answer(s: str) -> str:
     return white_space_fix(remove_articles(handle_punc(lower(replace_underscore(s))))).strip()
 
 
-def evaluate_answer(model_answer: str, dataset_answers: Union[str, list[str]]) -> int:
-    """Evaluate if model answer is correct against possible answer aliases.
+def evaluate_answer(
+    model_answers: Union[str, list[str]],
+    dataset_answers: Union[str, list[str]]
+) -> list[int]:
+    """Evaluate if model answer(s) is correct. An answer is correct if any of the
+    possible answer aliases is a substring of the model answer.
 
     Args:
-        model_answer (str): model's answer
+        model_answers (str or list[str]): model answer(s)
         dataset_answers (str or list[str]): possible answer aliases from dataset
 
     Returns:
-        result (int): 1 if model answer is correct, 0 otherwise
+        results (list[int]): 1 if model answer is correct, 0 otherwise
     """
-    result = 0
-    model_answer_normed = normalize_answer(model_answer)
-
+    if isinstance(model_answers, str):
+        model_answers = [model_answers]
     if isinstance(dataset_answers, str):
         dataset_answers = [dataset_answers]
 
-    for alias in dataset_answers:
-        if alias in model_answer_normed:
-            result = 1
-            break
+    model_answers_normed = [normalize_answer(a) for a in model_answers]
 
-    return result
+    results = []
+    for answer in model_answers_normed:
+        for alias in dataset_answers:
+            if alias in answer:
+                results.append(1)
+                break
+        else:
+            results.append(0)
+
+    return results

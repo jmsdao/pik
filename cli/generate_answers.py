@@ -241,7 +241,7 @@ def save_results_s3(
     # Upload text generations from IO buffer
     try:
         csv_buffer = StringIO()
-        text_gens.to_csv(csv_buffer)
+        text_gens.to_csv(csv_buffer, index=False)
         bucket.put_object(Body=csv_buffer.getvalue(), Key=text_gens_key)
     except Exception as e:
         print(e)
@@ -252,7 +252,7 @@ def save_results_s3(
     try:
         csv_buffer = StringIO()
         qa_pairs["qid"] = qa_pairs["qid"].astype(int)
-        qa_pairs.to_csv(csv_buffer)
+        qa_pairs.to_csv(csv_buffer, index=False)
         bucket.put_object(Body=csv_buffer.getvalue(), Key=qa_pairs_key)
     except Exception as e:
         print(e)
@@ -357,7 +357,7 @@ if __name__ == "__main__":
                 num_generations=generations_per_question,
                 batchsize_per_pass=batchsize_per_pass,
             )
-            evaluations = [eval_fn(output, answers) for output in text_outputs]
+            evaluations = eval_fn(text_outputs, answers)
 
         time_taken = time() - start
 
@@ -406,7 +406,9 @@ if __name__ == "__main__":
     for i in progress_bar:
         # Prep inputs
         question, answers = dataset[qids[i]]
-        text_input = text_generator.prompt_engineer(config["prompt_template"], question)
+        text_input = text_generator.prompt_engineer(
+            config["prompt_template"], question
+        )
 
         # Generate model ouputs and evaluate
         text_outputs = text_generator.generate(
@@ -414,7 +416,7 @@ if __name__ == "__main__":
             num_generations=generations_per_question,
             batchsize_per_pass=batchsize_per_pass,
         )
-        evaluations = [eval_fn(output, answers) for output in text_outputs]
+        evaluations = eval_fn(text_outputs, answers)
 
         # Collect results
         qa_pairs.loc[i, "qid"] = qids[i]
