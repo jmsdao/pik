@@ -65,11 +65,11 @@ def parse_args():
 def get_repo_info() -> str:
     """Returns info about current repo in a string for """
     repo = Repo(ROOT_DIR)
-    repo_url = repo.git.remote("get-url", "origin")
+    repo_url_main = repo.git.remote("get-url", "origin")
     commit_hash = repo.git.rev_parse("HEAD")
-    repo_url = f"{repo_url}{commit_hash}".replace(".git", "/tree/")
-    repo_id = f"git+{repo_url}@{commit_hash}"
-    repo_info = f"{repo_url}\n{repo_id}\n"
+    repo_url_commit = f"{repo_url_main}{commit_hash}".replace(".git", "/tree/")
+    repo_id = f"git+{repo_url_main}@{commit_hash}"
+    repo_info = f"{repo_url_commit}\n{repo_id}\n"
 
     return repo_info
 
