@@ -27,7 +27,7 @@ generation:
 results:
   dir:
     local: ./results  # Required (dir) if s3 is not specified, otherwise optional
-    # s3: s3://your-bucket/experiments/run01/  # Required (s3 uri) if local is not specified, otherwise optional
+    # s3: s3://your-bucket/experiments/test/  # Required (s3 uri) if local is not specified, otherwise optional
   files:
     text_generations: text_generations.csv  # Required (str)
     qa_pairs: qa_pairs.csv  # Required (str)

@@ -20,6 +20,7 @@ from pik.models.text_generation import TextGenerator
 
 SECRETS = dotenv_values(Path(ROOT_DIR, ".env"))
 N_TESTS = 3  # Number of questions to process when estimating
+LINE_BREAK = "-" * 80
 
 
 class Timer:
@@ -304,9 +305,16 @@ def main():
 
     # Load model and tokenizer
     model_name = config["model"]
+    print(LINE_BREAK)
     print(f'Loading model "{model_name}"...')
-    with Timer("Loaded model in {}"):
+    with Timer("Loaded model in {}\n"):
         model, tokenizer = load_model_and_tokenizer(model_name)
+    print(f"Parameter count: {sum(p.numel() for p in model.parameters())}")
+    print(f"model.__class__: {model.__class__}")
+    print(f"model.dtype: {model.dtype}")
+    print(f"model.device: {model.device}")
+    if model.device_map:
+        print("fmodel.device_map={model.device_map}")
 
     text_generator = TextGenerator(
         model,
@@ -317,6 +325,7 @@ def main():
 
     # Load dataset and its evaluation function
     dataset_name = config["dataset"]["name"]
+    print(LINE_BREAK)
     print(f'Loading dataset "{dataset_name}"...')
     with Timer("Loaded dataset in {}"):
         dataset, eval_fn = load_dataset_and_eval_fn(dataset_name)
@@ -327,12 +336,15 @@ def main():
         num_questions = len(qids)
     else:
         num_questions = config["dataset"]["num_questions"]
+        if num_questions == "all":
+            num_questions = len(dataset)
+
         qids = get_data_ids(
             dataset,
             num_items=num_questions,
             skip=config["dataset"]["skip"],
             shuffle=config["dataset"]["shuffle"],
-            shuffle_seed=config["dataset"]["seed"],
+            shuffle_seed=config["dataset"].get("seed", None),
         )
 
     # Grab repeated parameters from config
@@ -342,6 +354,8 @@ def main():
 
     # Estimate full runtime
     if args.estimate:
+        print(LINE_BREAK)
+        print("Generating text outputs...")
         start = time()
         progress_bar = trange(N_TESTS)
         for i in progress_bar:
@@ -361,7 +375,8 @@ def main():
 
         time_taken = time() - start
 
-        print("-" * 80)
+        # Print estimation parameters and results
+        print(LINE_BREAK)
         print(
             f"Estimation parameters:\n"
             f"Num questions processed = {N_TESTS}\n"
@@ -376,14 +391,14 @@ def main():
             f"{(time_taken / N_TESTS) * num_questions / 3600 :.3f} hours\n\n"
             f"Note: does not include time taken to write to disk or upload to s3"
         )
-        print("-" * 80)
 
+        # List out files to be saved to local disk and s3
+        print(LINE_BREAK)
         if local_dir:
             print("Output files to be saved to local disk:")
             for filename in config["results"]["files"].values():
                 print(f"  {Path(local_dir) / filename}")
-            print(f"  {Path(local_dir) / Path(args.config).name}")
-            print("-" * 80)
+            print(f"  {Path(local_dir) / Path(args.config).name}\n")
 
         if s3_uri:
             if not s3_uri.endswith("/"):
@@ -391,16 +406,25 @@ def main():
             print("Output files to be saved to s3:")
             for filename in config["results"]["files"].values():
                 print(f"  {s3_uri}{filename}")
-            print(f"  {s3_uri}{Path(args.config).name}")
-            print("-" * 80)
+            print(f"  {s3_uri}{Path(args.config).name}\n")
+
+        if config["results"]["overwrite"]:
+            print("WARNING: Overwrite flag is set to True.")
+            print("Make sure you actually want to overwrite existing files!")
+        print(LINE_BREAK)
 
         sys.exit()
 
     # Run the experiment
+    save_frequency = config["results"].get("save_frequency", None)
+
+    print(LINE_BREAK)
+    print("Generating text outputs...")
+    if save_frequency:
+        print(f"Saving results every {save_frequency} questions")
+
     text_gens = pd.DataFrame()
     qa_pairs = pd.DataFrame()
-
-    save_frequency = config["results"].get("save_frequency", None)
 
     progress_bar = trange(num_questions)
     for i in progress_bar:
@@ -443,6 +467,7 @@ def main():
                 save_results_s3(args, config, text_gens, qa_pairs)
 
     # Save final results
+    print(LINE_BREAK)
     if local_dir:
         print(f"Saving final results to {local_dir}")
         save_results_locally(args, config, text_gens, qa_pairs)

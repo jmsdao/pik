@@ -4,12 +4,15 @@ channels:
   - conda-forge
   - defaults
   - pytorch
+  - nvidia
 dependencies:
   - python=3.9
   - datasets
   - accelerate
   - sentencepiece
-  - pytorch 
+  - pytorch
+  # - pytorch-cuda=11.7  # Select a CUDA version compatible with your hardware
+  # - pytorch-gpu
   - boto3
   - python-dotenv
   - pytest
