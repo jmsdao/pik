@@ -13,7 +13,9 @@ dependencies:
   - pytorch
   # - pytorch-cuda=11.7  # Select a CUDA version compatible with your hardware
   # - pytorch-gpu
+  - GPUtil
   - boto3
+  - gitpython
   - python-dotenv
   - pytest
   - pip

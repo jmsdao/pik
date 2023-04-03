@@ -1,14 +1,17 @@
 import argparse
 import shutil
+import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
 from time import time
 
 import boto3
+import GPUtil
 import pandas as pd
 import yaml
 from dotenv import dotenv_values
+from git.repo import Repo
 from tqdm import trange
 from transformers import GenerationConfig
 
@@ -59,6 +62,42 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_repo_info() -> str:
+    """Returns info about current repo in a string for """
+    repo = Repo(ROOT_DIR)
+    repo_url = repo.git.remote("get-url", "origin")
+    commit_hash = repo.git.rev_parse("HEAD")
+    repo_url = f"{repo_url}{commit_hash}".replace(".git", "/tree/")
+    repo_id = f"git+{repo_url}@{commit_hash}"
+    repo_info = f"{repo_url}\n{repo_id}\n"
+
+    return repo_info
+
+
+def get_hardware_info() -> str:
+    info = ""
+    gpus = GPUtil.getGPUs()
+
+    # Get info per GPU
+    if gpus:
+        for i, gpu in enumerate(gpus):
+            info += f"GPU [{i}]:\n"
+            info += f"  name={gpu.name}\n"
+            info += f"  driver={gpu.driver}\n"
+            info += f"  serial={gpu.serial}\n"
+            info += f"  uuid={gpu.uuid}\n"
+        info += "\n"
+
+        # Get CUDA info
+        info += subprocess.Popen(
+            ["nvcc", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        ).communicate()[0].decode("utf-8") + "\n"
+    else:
+        info = "No GPUs\n"
+
+    return info
+
+
 def validate_config(cli: str) -> None:
     """Validate config file."""
     # Future feature: validate config file against a schema
@@ -79,6 +118,12 @@ def validate_local_dir(local_dir: str) -> None:
             sys.exit()
         if not path.is_dir():
             print(f'Error: local_dir "{path}" is not a directory')
+            sys.exit()
+        try:
+            path.joinpath("test.txt").touch()
+            path.joinpath("test.txt").unlink()
+        except PermissionError:
+            print(f'Error: local_dir "{path}" is not writable')
             sys.exit()
 
 
@@ -103,7 +148,12 @@ def check_files_exist_locally(
 ) -> None:
     """Alert user if any local filepaths already exist."""
     local_dir = config["results"]["dir"]["local"]
-    output_filepaths = [Path(local_dir) / Path(args.config).name]
+    output_filepaths = [
+        Path(local_dir) / Path(args.config).name,
+        Path(local_dir) / "repo_info.txt",
+        Path(local_dir) / "hardware_info.txt",
+        Path(local_dir) / "environment.yaml",
+    ]
 
     for filename in config["results"]["files"].values():
         output_filepaths.append(Path(local_dir) / filename)
@@ -126,19 +176,30 @@ def save_results_locally(
     """Save results locally."""
     local_dir = config["results"]["dir"]["local"]
 
-    # Save config file to disk
+    # Save config file local_dir
     shutil.copy(args.config, Path(local_dir))
 
-    # Save text generations to disk
+    # Save text generations local_dir
     text_gens.to_csv(
         Path(local_dir) / config["results"]["files"]["text_generations"], index=False
     )
 
-    # Save QA pairs to disk
+    # Save QA pairs local_dir
     qa_pairs["qid"] = qa_pairs["qid"].astype(int)
     qa_pairs.to_csv(
         Path(local_dir) / config["results"]["files"]["qa_pairs"], index=False
     )
+
+    # Save repo info local_dir
+    with open(Path(local_dir) / "repo_info.txt", "w") as f:
+        f.write(get_repo_info())
+
+    # Save hardware info local_dir
+    with open(Path(local_dir) / "hardware_info.txt", "w") as f:
+        f.write(get_hardware_info())
+
+    # Save environment.yaml to local_dir
+    shutil.copy(ROOT_DIR / "environment.yaml", Path(local_dir))
 
 
 def validate_s3_uri(s3_uri: str) -> None:
@@ -177,7 +238,12 @@ def check_files_exist_s3(
     bucket_name, s3_key_prefix = get_s3_bucket_name_and_key(s3_uri)
     bucket = connect_to_s3(bucket_name)
 
-    output_keys = [s3_key_prefix + Path(args.config).name]
+    output_keys = [
+        s3_key_prefix + Path(args.config).name,
+        s3_key_prefix + "repo_info.txt",
+        s3_key_prefix + "hardware_info.txt",
+        s3_key_prefix + "environment.yaml",
+    ]
 
     for filename in config["results"]["files"].values():
         output_keys.append(s3_key_prefix + filename)
@@ -260,6 +326,39 @@ def save_results_s3(
         print(f"Warning: failed to upload QA pairs to s3 {qa_pairs_key}")
         print("Continuing...")
 
+    # Upload repo info from IO buffer
+    repo_info = get_repo_info()
+    repo_info_key = s3_key_prefix + "repo_info.txt"
+    try:
+        csv_buffer = StringIO()
+        csv_buffer.write(repo_info)
+        bucket.put_object(Body=csv_buffer.getvalue(), Key=repo_info_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload repo_info.txt to s3 {repo_info_key}")
+        print("Continuing...")
+
+    # Upload hardware info from IO buffer
+    hardware_info = get_hardware_info()
+    hardware_info_key = s3_key_prefix + "hardware_info.txt"
+    try:
+        csv_buffer = StringIO()
+        csv_buffer.write(hardware_info)
+        bucket.put_object(Body=csv_buffer.getvalue(), Key=hardware_info_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload hardware_info.txt to s3 {hardware_info_key}")
+        print("Continuing...")
+
+    # Upload environment.yaml
+    environment_key = s3_key_prefix + "environment.yaml"
+    try:
+        bucket.upload_file(str(ROOT_DIR / "environment.yaml"), environment_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload environment.yaml to s3 {environment_key}")
+        print("Continuing...")
+
 
 def main():
     args = parse_args()
@@ -313,8 +412,8 @@ def main():
     print(f"model.__class__: {model.__class__}")
     print(f"model.dtype: {model.dtype}")
     print(f"model.device: {model.device}")
-    if model.device_map:
-        print("fmodel.device_map={model.device_map}")
+    if getattr(model, "hf_device_map", None):
+        print(f"model.hf_device_map={model.device_map}")
 
     text_generator = TextGenerator(
         model,
@@ -398,7 +497,10 @@ def main():
             print("Output files to be saved to local disk:")
             for filename in config["results"]["files"].values():
                 print(f"  {Path(local_dir) / filename}")
-            print(f"  {Path(local_dir) / Path(args.config).name}\n")
+            print(f"  {Path(local_dir) / Path(args.config).name}")
+            print(f"  {Path(local_dir) / 'repo_info.txt'}")
+            print(f"  {Path(local_dir) / 'hardware_info.txt'}")
+            print(f"  {Path(local_dir) / 'environment.txt'}\n")
 
         if s3_uri:
             if not s3_uri.endswith("/"):
@@ -406,7 +508,10 @@ def main():
             print("Output files to be saved to s3:")
             for filename in config["results"]["files"].values():
                 print(f"  {s3_uri}{filename}")
-            print(f"  {s3_uri}{Path(args.config).name}\n")
+            print(f"  {s3_uri}{Path(args.config).name}")
+            print(f"  {s3_uri}{'repo_info.txt'}")
+            print(f"  {s3_uri}{'hardware_info.txt'}")
+            print(f"  {s3_uri}{'environment.txt'}\n")
 
         if config["results"]["overwrite"]:
             print("WARNING: Overwrite flag is set to True.")
@@ -456,7 +561,7 @@ def main():
 
         # Update progress bar
         progress_bar.set_description(
-            f'Last qid={qids[i]}, mean_eval={df["evaluation"].mean() :.2f}'
+            f'Last step: qid = {qids[i]}, mean_eval = {df["evaluation"].mean() :.2f}'
         )
 
         # Periodically save results

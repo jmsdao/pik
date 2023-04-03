@@ -8,24 +8,38 @@ This builds up on Anthropic's work ['Language Models (Mostly) Know What They Kno
 
 ## Environment Setup
 
-Clone the repo and `cd` into it:
+This repo uses mamba, which is a drop-in replacement for conda that is faster and more reliable. You can replace any conda command with mamba and it will work the same. The conda commands are still available with a mambaforge installation.
+
+These instructions assume a fresh install of Ubuntu 20.04. You may need to adjust the commands below depending on your OS and hardware.  
+
+1. Download mambaforge, install it, initialize it, and restart your shell:
 ```bash
-git clone https://github.com/jmsdao/pik.git
-cd pik
+wget https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh && \
+bash Mambaforge-Linux-x86_64.sh -b && \
+mambaforge/bin/mamba init bash && \
+exec bash
 ```
 
-Install the conda environment (use mamba, it's much faster than conda) and activate it:
+2. Clone the repo and `cd` into it:
 ```bash
-mamba env create -f environment.yaml
-conda activate pik
+git clone https://github.com/jmsdao/pik.git && cd pik
 ```
 
-Install the source packages from this repo:
+3. Edit [`environment.yaml`](https://github.com/jmsdao/pik/blob/main/environment.yaml) to match your hardware (e.g. CUDA version, etc.).  
+   > **Note**  
+   > If you're using a GPU, uncomment `pytorch-gpu` and select your CUDA version with `pytorch-cuda=<version>`.
+
+4. Create the mamba environment and activate it:
+```bash
+mamba env create -f environment.yaml && mamba activate pik
+```
+
+5. Install the source packages from this repo:
 ```bash
 pip install -e .
 ```
 
-Launch your Python interpreter and validate:
+6. Launch your Python interpreter and check that the `pik` package is installed:
 ```python
 python
 >>> import pik
@@ -33,8 +47,15 @@ python
 PosixPath('/<abs_path_to>/pik')
 ```
 
-### Credentials
-If you're planning to use S3 functionality, make sure you add your AWS credentials to the `.env` file.
+7. If you're planning to use S3 functionality, make sure you add your AWS credentials to the [`.env`](https://github.com/jmsdao/pik/blob/main/.env) file:
+
+> **Warning**  
+> BE CAREFUL NOT TO COMMIT YOUR CREDENTIALS TO GITHUB!
+
+You can run the following command so git doesn't track the `.env` file:
+```bash
+git update-index --assume-unchanged .env
+```
 
 ---
 
