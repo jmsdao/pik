@@ -27,7 +27,7 @@ git clone https://github.com/jmsdao/pik.git && cd pik
 
 3. Edit [`environment.yaml`](https://github.com/jmsdao/pik/blob/main/environment.yaml) to match your hardware (e.g. CUDA version, etc.).  
    > **Note**  
-   > If you're using a GPU, uncomment `pytorch-gpu` and `pytorch-cuda=<version>`
+   > If you're not using any GPUs (why tho??), you can comment out `pytorch-gpu` and `pytorch-cuda=<version>` to save yourself installation time.
 
 4. Create the mamba environment and activate it:
 ```bash
