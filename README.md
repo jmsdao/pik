@@ -25,14 +25,14 @@ exec bash
 git clone https://github.com/jmsdao/pik.git && cd pik
 ```
 
-3. Edit [`environment.yaml`](https://github.com/jmsdao/pik/blob/main/environment.yaml) to match your hardware (e.g. CUDA version, etc.). In the case that your instance doesn't have an editor installed, you can run:
+3. Edit [`environment.yaml`](https://github.com/jmsdao/pik/blob/main/environment.yaml) to match your hardware (e.g. CUDA version, etc.). You can run `nvidia-smi` to see which CUDA version it's running. In the case that your instance doesn't have an editor installed, you can run:
 
 ```bash
 sudo apt-get install vim
 ```
 
    > **Note**  
-   > If you're not using any GPUs (why tho??), you can comment out `pytorch-gpu` and `pytorch-cuda=<version>` to save yourself installation time.
+   > If you're not using any GPUs (why tho??), you can comment out `pytorch-gpu` and `pytorch-cuda=<version>` from the environment YAML to save yourself installation time.
 
 
 
