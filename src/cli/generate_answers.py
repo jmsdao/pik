@@ -413,7 +413,7 @@ def main():
     print(f"model.dtype: {model.dtype}")
     print(f"model.device: {model.device}")
     if getattr(model, "hf_device_map", None):
-        print(f"model.hf_device_map={model.device_map}")
+        print(f"model.hf_device_map={model.hf_device_map}")
 
     text_generator = TextGenerator(
         model,
