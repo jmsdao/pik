@@ -1,0 +1,44 @@
+cli: gen-answers  # Required (str): which CLI this config is for
+
+
+model: llama-7b  # Required (str)
+dataset:
+  name: trivia_qa  # Required (str)
+  num_questions: all  # Required (int or "all")
+  # skip: 0  # Optional (int): skip the first N questions
+  shuffle: False  # Required (bool)
+  # seed: 42  # Optional (int or None): seed used to shuffle the dataset, ignored if shuffle is False
+  # ids_file: nums.txt  # Optional (str): path to file containing question ids to index the dataset
+                        # If used, num_questions, skip, shuffle and seed are ignored
+                        # Integers in file can be separated by newlines, spaces or commas
+generation:
+  seed: 1337  # Optional (int): random seed for reproducibility, set before each question
+  generations_per_question: 40  # Required (int)
+  batchsize_per_pass: 40  # Required (int): max batch size per model forward pass
+  config:  # Required (dict): overrides for model's GenerationConfig
+           # For more details, see: https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
+    max_new_tokens: 16
+    do_sample: True
+    temperature: 1
+    eos_token_id: 13  # Stop generating when a gpt2's newline is generated
+
+
+results:
+  dir:
+    # local: ./results  # Required (dir) if s3 is not specified, otherwise optional
+    s3: s3://<REDACTED_BUCKET>/experiments/run01/  # Required (s3 uri) if local is not specified, otherwise optional
+  files:
+    text_generations: text_generations.csv  # Required (str)
+    qa_pairs: qa_pairs.csv  # Required (str)
+  save_frequency: 500  # Optional (int): save results every N questions, otherwise only save at the end
+  overwrite: False  # Required (bool): overwrite existing results.
+                    # If False, will fail if any results already exist
+
+# Required (str): must include a "{}" to replace with a question
+# Newlines and trailing whitespaces are preserved
+# Left side identation, and end of string newline are ignored
+# For more details, see: https://yaml-multiline.info/
+prompt_template: |-
+  Question: {}
+  Answer:
+# End of YAML file
