@@ -20,7 +20,7 @@ generation:
     max_new_tokens: 16
     do_sample: True
     temperature: 1
-    eos_token_id: 13  # Stop generating when a gpt2's newline is generated
+    eos_token_id: 13  # Stop generating when a llama's newline is generated
 
 
 results:
@@ -39,6 +39,7 @@ results:
 # Left side identation, and end of string newline are ignored
 # For more details, see: https://yaml-multiline.info/
 prompt_template: |-
+  Answer these questions:
   Question: {}
   Answer:
 # End of YAML file
