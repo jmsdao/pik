@@ -88,10 +88,13 @@ def get_hardware_info() -> str:
             info += f"  uuid={gpu.uuid}\n"
         info += "\n"
 
-        # Get CUDA info
-        info += subprocess.Popen(
-            ["nvcc", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        ).communicate()[0].decode("utf-8") + "\n"
+        # Get nvidia-smi info
+        try:
+            info += subprocess.Popen(
+                ["nvidia-smi"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ).communicate()[0].decode("utf-8") + "\n"
+        except Exception:
+            pass
     else:
         info = "No GPUs\n"
 
@@ -441,7 +444,7 @@ def main():
         qids = get_data_ids(
             dataset,
             num_items=num_questions,
-            skip=config["dataset"]["skip"],
+            skip=config["dataset"].get("skip", None),
             shuffle=config["dataset"]["shuffle"],
             shuffle_seed=config["dataset"].get("seed", None),
         )
