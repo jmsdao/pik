@@ -437,17 +437,14 @@ def main():
         qids = get_data_ids_from_file(dataset, ids_file)
         num_questions = len(qids)
     else:
-        num_questions = config["dataset"]["num_questions"]
-        if num_questions == "all":
-            num_questions = len(dataset)
-
         qids = get_data_ids(
             dataset,
-            num_items=num_questions,
+            num_items=config["dataset"]["num_questions"],
             skip=config["dataset"].get("skip", None),
             shuffle=config["dataset"]["shuffle"],
             shuffle_seed=config["dataset"].get("seed", None),
         )
+        num_questions = len(qids)
 
     # Grab repeated parameters from config
     generations_per_question = config["generation"]["generations_per_question"]
