@@ -78,21 +78,17 @@ def get_hardware_info() -> str:
     info = ""
     gpus = GPUtil.getGPUs()
 
-    # Get info per GPU
     if gpus:
-        for i, gpu in enumerate(gpus):
-            info += f"GPU [{i}]:\n"
-            info += f"  name={gpu.name}\n"
-            info += f"  driver={gpu.driver}\n"
-            info += f"  serial={gpu.serial}\n"
-            info += f"  uuid={gpu.uuid}\n"
-        info += "\n"
-
         # Get nvidia-smi info
         try:
             info += subprocess.Popen(
                 ["nvidia-smi"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
             ).communicate()[0].decode("utf-8") + "\n"
+
+            info += subprocess.Popen(
+                ["nvidia-smi", "-L"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ).communicate()[0].decode("utf-8") + "\n"
+
         except Exception:
             pass
     else:

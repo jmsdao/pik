@@ -11,8 +11,8 @@ dependencies:
   - accelerate
   - sentencepiece
   - pytorch
-  - pytorch-cuda=11.7  # Select a CUDA version compatible with your hardware
   - pytorch-gpu
+  - cuda-toolkit=11.7  # Select a CUDA version compatible with your hardware
   - gputil
   - boto3
   - gitpython

@@ -14,13 +14,14 @@ dataset:
 generation:
   seed: 1337  # Optional (int): random seed for reproducibility, set before each question
   generations_per_question: 40  # Required (int)
-  batchsize_per_pass: 40  # Required (int): max batch size per model forward pass
+  batchsize_per_pass: 20  # Required (int): max batch size per model forward pass
   config:  # Required (dict): overrides for model's GenerationConfig
            # For more details, see: https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
     max_new_tokens: 16
     do_sample: True
     temperature: 1
     eos_token_id: 13  # Stop generating when a llama's newline is generated
+    pad_token_id: 1  # Token ID 1 should be llama's empty string
 
 
 results:
