@@ -1,2 +1,3 @@
 # flake8: noqa
-from .load import load_dataset_and_eval_fn, IMPLEMENTED_DATASETS
+from .load import load_dataset, get_eval_fn
+from .load import IMPLEMENTED_DATASETS

@@ -39,19 +39,24 @@ class TextGenerator:
             self.gen_config = GenerationConfig(**gen_config)
 
     @staticmethod
-    def prompt_engineer(prompt_template: str, prompt: str) -> str:
+    def prompt_engineer(
+        prompt_template: str, prompt: Union[str, list[str]]
+    ) -> Union[str, list[str]]:
         """Engineers a prompt for a model.
 
         Args:
-            prompt_template (str): text to prepend to the prompt, must
-                contain a "{}" to be replaced
-            prompt (str): text to use as the prompt
+            prompt_template (str): template for the prompt. eg. 'Q: {} A:'
+                Must include a "{}" to be replaced with the prompt
+            prompt (str or list[str]): text to use as the prompt
 
         Returns:
             engineered_prompt (str): text to use as the prompt
         """
         if r"{}" not in prompt_template:
             raise ValueError(r'prompt_template must contain a "{}"')
+
+        if isinstance(prompt, list):
+            return [prompt_template.format(p) for p in prompt]
 
         return prompt_template.format(prompt)
 

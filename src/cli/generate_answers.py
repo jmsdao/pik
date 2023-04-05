@@ -9,6 +9,7 @@ from time import time
 import boto3
 import GPUtil
 import pandas as pd
+import torch
 import yaml
 from dotenv import dotenv_values
 from git.repo import Repo
@@ -16,10 +17,13 @@ from tqdm import trange
 from transformers import GenerationConfig
 
 from pik import ROOT_DIR
-from pik.datasets import load_dataset_and_eval_fn
+from pik.datasets import load_dataset, get_eval_fn
 from pik.datasets.utils import get_data_ids, get_data_ids_from_file
-from pik.models import load_model_and_tokenizer
+from pik.models import load_model, load_tokenizer
 from pik.models.text_generation import TextGenerator
+
+torch.set_grad_enabled(False)
+
 
 SECRETS = dotenv_values(Path(ROOT_DIR, ".env"))
 N_TESTS = 3  # Number of questions to process when estimating
@@ -359,6 +363,7 @@ def save_results_s3(
         print("Continuing...")
 
 
+# --- MAIN --------------------------------------------------------------------
 def main():
     args = parse_args()
 
@@ -401,18 +406,18 @@ def main():
         check_s3_write_access(args, s3_uri)
         print("Write access confirmed!")
 
-    # Load model and tokenizer
+    # --- LOAD MODEL AND TOKENIZER --------------------------------------------
     model_name = config["model"]
     print(LINE_BREAK)
     print(f'Loading model "{model_name}"...')
     with Timer("Loaded model in {}\n"):
-        model, tokenizer = load_model_and_tokenizer(model_name)
+        model, tokenizer = load_model(model_name), load_tokenizer(model_name)
     print(f"Parameter count: {sum(p.numel() for p in model.parameters())}")
     print(f"model.__class__: {model.__class__}")
     print(f"model.dtype: {model.dtype}")
     print(f"model.device: {model.device}")
     if getattr(model, "hf_device_map", None):
-        print(f"model.hf_device_map={model.hf_device_map}")
+        print(f"model.hf_device_map:{model.hf_device_map}")
 
     text_generator = TextGenerator(
         model,
@@ -421,12 +426,12 @@ def main():
         generation_seed=config["generation"].get("seed", None),
     )
 
-    # Load dataset and its evaluation function
+    # --- LOAD DATASET AND EVALUATION FUNCTION --------------------------------
     dataset_name = config["dataset"]["name"]
     print(LINE_BREAK)
     print(f'Loading dataset "{dataset_name}"...')
     with Timer("Loaded dataset in {}"):
-        dataset, eval_fn = load_dataset_and_eval_fn(dataset_name)
+        dataset, eval_fn = load_dataset(dataset_name), get_eval_fn(dataset_name)
 
     # Get question ids of questions to process
     if ids_file:
@@ -447,7 +452,7 @@ def main():
     batchsize_per_pass = config["generation"]["batchsize_per_pass"]
     max_new_tokens = config["generation"]["config"]["max_new_tokens"]
 
-    # Estimate full runtime
+    # --- RUN ESTIMATION ------------------------------------------------------
     if args.estimate:
         print(LINE_BREAK)
         print("Generating text outputs...")
@@ -462,11 +467,11 @@ def main():
 
             # Generate model ouputs and evaluate
             text_outputs = text_generator.generate(
-                text_input,
+                text_input,  # type: ignore
                 num_generations=generations_per_question,
                 batchsize_per_pass=batchsize_per_pass,
             )
-            evaluations = eval_fn(text_outputs, answers)
+            evaluations = eval_fn(text_outputs, answers)  # type: ignore
 
         time_taken = time() - start
 
@@ -516,7 +521,7 @@ def main():
 
         sys.exit()
 
-    # Run the experiment
+    # --- RUN EXPERIMENT ------------------------------------------------------
     save_frequency = config["results"].get("save_frequency", None)
 
     print(LINE_BREAK)
@@ -537,16 +542,16 @@ def main():
 
         # Generate model ouputs and evaluate
         text_outputs = text_generator.generate(
-            text_input,
+            text_input,  # type: ignore
             num_generations=generations_per_question,
             batchsize_per_pass=batchsize_per_pass,
         )
-        evaluations = eval_fn(text_outputs, answers)
+        evaluations = eval_fn(text_outputs, answers)  # type: ignore
 
         # Collect results
         qa_pairs.loc[i, "qid"] = qids[i]
-        qa_pairs.loc[i, "question"] = question
-        qa_pairs.loc[i, "answers"] = ";".join(answers)
+        qa_pairs.loc[i, "question"] = question  # type: ignore
+        qa_pairs.loc[i, "answers"] = ";".join(answers)  # type: ignore
 
         df = pd.DataFrame()
         df["qid"] = [qids[i]] * len(text_outputs)

@@ -84,13 +84,13 @@ gen-answers configs/example-gen-answers.yaml
 ## Package Usage Examples
 
 ```python
-from pik.datasets import load_dataset_and_eval_fn
-from pik.models import load_model_and_tokenizer
+from pik.datasets import load_dataset, get_eval_fn
+from pik.models import load_model, load_tokenizer
 from pik.models.text_generation import TextGenerator
 
 
-dataset, eval_fn = load_dataset_and_eval_fn("trivia_qa")
-model, tokenizer = load_model_and_tokenizer("gpt2")
+dataset, eval_fn = load_dataset("trivia_qa"), get_eval_fn("trivia_qa")
+model, tokenizer = load_model("gpt2"), load_tokenizer("gpt2")
 
 tg = TextGenerator(model, tokenizer)
 question, answer = dataset[0]
