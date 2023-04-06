@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Iterable
 from pathlib import Path
 from torch.utils.data import Dataset
 from datasets import load_dataset
@@ -27,23 +27,26 @@ class TriviaQADataset(Dataset):
         return self.dataset.num_rows  # type: ignore
 
     def __getitem__(
-        self, key: int
-    ) -> tuple[Union[str, list[str]], Union[list[str], list[list[str]]]]:
-        """Should be sliceable.
-
-        Returns a tuple: (question, answer_aliases)
-            question (str): text string of the question
-            answer_aliases (list[str]): list of strings of possible answers
+        self, key: Union[int, Iterable[int], slice]
+    ) -> Union[
+        tuple[str, list[str]],
+        tuple[list[str], list[list[str]]]
+    ]:
         """
-        question = self.dataset[key]["question"]  # type: ignore
-        answers = self.dataset[key]["answer"]  # type: ignore
-
-        if isinstance(key, slice):
-            normalized_aliases = [answer["normalized_aliases"] for answer in answers]
+        Returns a tuple:
+            question (str | list[str]):
+                text string of the question
+            answer_aliases (list[str] | list[list[str]]):
+                list of strings of possible answers
+        """
+        datasubset = self.dataset[key]  # type: ignore
+        question = datasubset['question']
+        if isinstance(key, int):
+            answer_aliases = datasubset['answer']['normalized_aliases']  # type: ignore
         else:
-            normalized_aliases = answers["normalized_aliases"]  # type: ignore
+            answer_aliases = [ans['normalized_aliases'] for ans in datasubset['answer']]
 
         return (
             question,
-            normalized_aliases,
+            answer_aliases,
         )

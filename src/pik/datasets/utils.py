@@ -83,12 +83,12 @@ def get_data_ids_from_file(dataset, filepath: str) -> list[int]:
     return data_ids
 
 
-def _chunked(indexable, n):
-    """Yield successive n-sized chunks from an indexable object.
+def chunked(sliceable, n):
+    """Yield successive n-sized chunks from a 0-indexed sliceable object.
     Last chunk may be smaller than n.
     """
-    for i in range(0, len(indexable), n):
-        yield indexable[i : i + n]  # noqa
+    for i in range(0, len(sliceable), n):
+        yield sliceable[i : i + n]  # noqa
 
 
 def get_token_seq_lens(
@@ -121,7 +121,7 @@ def get_token_seq_lens(
         data_ids = list(range(len(dataset)))
 
     num_chunks = int((len(data_ids) / chunk_size).__ceil__())
-    chunks = _chunked(data_ids, chunk_size)
+    chunks = chunked(data_ids, chunk_size)
     if use_tqdm:
         chunks = tqdm(chunks, total=num_chunks)
 

@@ -13,12 +13,12 @@ import torch
 import yaml
 from dotenv import dotenv_values
 from git.repo import Repo
-from tqdm import trange
+from tqdm.auto import tqdm
 from transformers import GenerationConfig
 
 from pik import ROOT_DIR
 from pik.datasets import load_dataset, get_eval_fn
-from pik.datasets.utils import get_data_ids, get_data_ids_from_file
+from pik.datasets.utils import get_data_ids, get_data_ids_from_file, get_token_seq_lens
 from pik.models import load_model, load_tokenizer
 from pik.models.text_generation import TextGenerator
 
@@ -423,7 +423,6 @@ def main():
         model,
         tokenizer,
         gen_config=GenerationConfig(**config["generation"]["config"]),
-        generation_seed=config["generation"].get("seed", None),
     )
 
     # --- LOAD DATASET AND EVALUATION FUNCTION --------------------------------
@@ -446,14 +445,16 @@ def main():
             shuffle_seed=config["dataset"].get("seed", None),
         )
         num_questions = len(qids)
+    print(f"Number of questions to process: {num_questions}")
 
     # Grab repeated parameters from config
     generations_per_question = config["generation"]["generations_per_question"]
-    batchsize_per_pass = config["generation"]["batchsize_per_pass"]
+    batch_size = config["generation"]["batch_size"]
     max_new_tokens = config["generation"]["config"]["max_new_tokens"]
 
     # --- RUN ESTIMATION ------------------------------------------------------
     if args.estimate:
+        raise NotImplementedError("Estimation needs fixing")
         print(LINE_BREAK)
         print("Generating text outputs...")
         start = time()
@@ -523,56 +524,84 @@ def main():
 
     # --- RUN EXPERIMENT ------------------------------------------------------
     save_frequency = config["results"].get("save_frequency", None)
+    num_questions_processed = 0
 
     print(LINE_BREAK)
     print("Generating text outputs...")
     if save_frequency:
         print(f"Saving results every {save_frequency} questions")
 
-    text_gens = pd.DataFrame()
-    qa_pairs = pd.DataFrame()
+    text_gens = pd.DataFrame(columns=["qid", "model_answer", "evaluation"])
+    qa_pairs = pd.DataFrame(columns=["qid", "question", "answer"])
 
-    progress_bar = trange(num_questions)
-    for i in progress_bar:
+    batched_qids = text_generator.get_batched_data_ids(
+        qids, generations_per_question, batch_size
+    )
+
+    bar_format = (
+        "{desc}: {percentage:.1f}%|{bar}| {n:.1f}/{total_fmt} "
+        "[{elapsed}<{remaining},{rate_fmt}{postfix}]"
+    )
+    progress_bar = tqdm(
+        total=num_questions,
+        bar_format=bar_format,
+    )
+    for batch in batched_qids:
         # Prep inputs
-        question, answers = dataset[qids[i]]
-        text_input = text_generator.prompt_engineer(
-            config["prompt_template"], question
+        if isinstance(batch, int):
+            batch = [batch]
+        questions, answers = dataset[batch]
+        text_inputs = text_generator.prompt_engineer(
+            config["prompt_template"], questions
         )
 
         # Generate model ouputs and evaluate
-        text_outputs = text_generator.generate(
-            text_input,  # type: ignore
-            num_generations=generations_per_question,
-            batchsize_per_pass=batchsize_per_pass,
-        )
-        evaluations = eval_fn(text_outputs, answers)  # type: ignore
+        text_outputs = text_generator.generate(text_inputs)
+        evaluations = eval_fn(text_outputs, answers)
 
         # Collect results
-        qa_pairs.loc[i, "qid"] = qids[i]
-        qa_pairs.loc[i, "question"] = question  # type: ignore
-        qa_pairs.loc[i, "answers"] = ";".join(answers)  # type: ignore
+        batch_tg = pd.DataFrame()
+        batch_tg["qid"] = batch
+        batch_tg["model_answer"] = text_outputs
+        batch_tg["evaluation"] = evaluations
+        text_gens = pd.concat([text_gens, batch_tg], ignore_index=True)
 
-        df = pd.DataFrame()
-        df["qid"] = [qids[i]] * len(text_outputs)
-        df["n"] = [n for n in range(1, len(text_outputs) + 1)]
-        df["model_answer"] = text_outputs
-        df["evaluation"] = evaluations
-        text_gens = pd.concat([text_gens, df], ignore_index=True)
+        qids_in_batch = pd.Series(batch).unique().tolist()
+        batch_qa = pd.DataFrame()
+        new_qids = [i for i in qids_in_batch if i not in qa_pairs["qid"].tolist()]
+        if new_qids:
+            batch_qa["qid"] = new_qids
+            batch_qa["question"] = batch_qa["qid"].apply(lambda x: dataset[x][0])
+            batch_qa["answer"] = batch_qa["qid"].apply(lambda x: ';'.join(dataset[x][1]))  # type: ignore
+            qa_pairs = pd.concat([qa_pairs, batch_qa], ignore_index=True)
 
         # Update progress bar
+        questions_in_batch = len(batch) / generations_per_question
+
+        mean_evals_per_qid = (
+            batch_tg[["qid", "evaluation"]]
+            .groupby("qid").mean().round(3)
+            ["evaluation"].tolist()
+        )
+        progress_bar.update(questions_in_batch)
         progress_bar.set_description(
-            f'Last step: qid = {qids[i]}, mean_eval = {df["evaluation"].mean() :.2f}'
+            f"qids in batch: {qids_in_batch}, "
+            f"mean evals per qid: {mean_evals_per_qid}"
         )
 
         # Periodically save results
-        if save_frequency and (i + 1) % save_frequency == 0:
-            if local_dir:
-                save_results_locally(args, config, text_gens, qa_pairs)
-            if s3_uri:
-                save_results_s3(args, config, text_gens, qa_pairs)
+        if save_frequency:
+            num_questions_processed += questions_in_batch
+            if num_questions_processed >= save_frequency:
+                num_questions_processed = 0
+                if local_dir:
+                    save_results_locally(args, config, text_gens, qa_pairs)
+                if s3_uri:
+                    save_results_s3(args, config, text_gens, qa_pairs)
 
-    # Save final results
+    progress_bar.close()
+
+    # --- SAVE FINAL RESULTS --------------------------------------------------
     print(LINE_BREAK)
     if local_dir:
         print(f"Saving final results to {local_dir}")

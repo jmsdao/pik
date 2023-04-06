@@ -62,7 +62,7 @@ def load_model(model_name: str):
     return model
 
 
-def load_tokenizer(model_name: str) -> tuple:
+def load_tokenizer(model_name: str, **kwargs) -> tuple:
     """One-liner for loading a given model's tokenizer from the HuggingFace model hub.
 
     Args:
@@ -75,13 +75,19 @@ def load_tokenizer(model_name: str) -> tuple:
     if model_name == "test":
         from transformers import AutoTokenizer
 
-        tokenizer = AutoTokenizer.from_pretrained("gpt2")
+        tokenizer = AutoTokenizer.from_pretrained(
+            "gpt2", padding_side="left", **kwargs
+        )
+        tokenizer.pad_token = tokenizer.eos_token
 
     # Code block for loading small models
     elif model_name in SMALL_MODELS:
         from transformers import AutoTokenizer
 
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name, padding_side="left", **kwargs
+        )
+        tokenizer.pad_token = tokenizer.eos_token
 
     # Code block for loading llama models
     elif "llama" in model_name:
@@ -91,7 +97,7 @@ def load_tokenizer(model_name: str) -> tuple:
         tokenizer_location = hf_hub_download(
             repo_id="decapoda-research/llama-7b-hf", filename="tokenizer.model"
         )
-        tokenizer = LlamaTokenizer.from_pretrained(tokenizer_location)
+        tokenizer = LlamaTokenizer.from_pretrained(tokenizer_location, **kwargs)
 
     # Catch all for models not implemented
     else:
