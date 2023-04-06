@@ -91,7 +91,7 @@ class TextGenerator:
         >>> data_ids = [0, 1, 2, 3]
         >>> batched_ids = TextGenerator.get_batched_data_ids(data_ids, 3, 5)
         >>> [batch for batch in batched_ids]
-        [[0, 0, 0, 1, 1], [1, 2, 2, 2, 3], [3, 3, 3]]
+        [[0, 0, 0, 1, 1], [1, 2, 2, 2, 3], [3, 3]]
         ```
         """
         if num_generations < 1 or batch_size < 1:
@@ -110,6 +110,7 @@ class TextGenerator:
 
         Args:
             text_inputs (str or list[str]): text to use as input for the model
+            remove_input (bool): whether to remove the input text from the output
 
         Returns:
             text_outputs (list[str]): list of generated text with input text removed
@@ -135,55 +136,3 @@ class TextGenerator:
                 text_outputs[i] = text_outputs[i][len(text_input):]
 
         return text_outputs
-
-        # """Generate one or more answers for one question.
-        # Each model forward pass will be batched by batchsize_per_pass (at most).
-
-        # Args:
-        #     text_input (str): text to use as input for the model
-        #     num_generations (int): number of generations total for the given input
-        #     batchsize_per_pass (int): max batch size per model forward pass
-        #         For example, if num_generations=40 and batchsize_per_pass=15, then
-        #         batch sizes will be [15, 15, 10]
-
-        # Returns:
-        #     text_outputs (list[str]): list of generated text with len num_generations.
-        #         Everything before and including the text_input is removed from each output.
-        # """
-        # if not isinstance(text_input, str):
-        #     raise ValueError(f'text_input must be a string, not "{type(text_input)}"')
-        # if num_generations < 1 or batchsize_per_pass < 1:
-        #     raise ValueError("num_generations and batchsize_per_pass must be >= 1")
-
-        # batchsize_per_pass = min(batchsize_per_pass, num_generations)
-
-        # # Calculate batch sizes used for each pass
-        # batch_sizes = [batchsize_per_pass] * (num_generations // batchsize_per_pass)
-        # if num_generations % batchsize_per_pass != 0:
-        #     batch_sizes.append(num_generations % batchsize_per_pass)
-
-        # # Generate text
-        # text_outputs = []
-
-        # for batch_size in batch_sizes:
-        #     batched_text_input = [text_input] * batch_size
-        #     encoded_inputs = self.tokenizer(batched_text_input, return_tensors="pt")
-        #     encoded_inputs = encoded_inputs.to(self.model.device)
-
-        #     with torch.inference_mode():
-        #         outputs = self.model.generate(
-        #             **encoded_inputs,
-        #             generation_config=self.gen_config,
-        #         )
-
-        #     text_outputs.extend(
-        #         self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        #     )
-
-        # assert len(text_outputs) == num_generations
-
-        # # Remove everything before and including the text_input
-        # start_index = text_outputs[0].find(text_input) + len(text_input)
-        # text_generations = [text_output[start_index:] for text_output in text_outputs]
-
-        # return text_generations

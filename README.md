@@ -93,8 +93,8 @@ dataset, eval_fn = load_dataset("trivia_qa"), get_eval_fn("trivia_qa")
 model, tokenizer = load_model("gpt2"), load_tokenizer("gpt2")
 
 tg = TextGenerator(model, tokenizer)
-question, answer = dataset[0]
+question, answer = dataset[0]  # Can also index `dataset` with a slice or iterable
 
-model_answers = tg.generate(question, num_generations=5)
-eval_fn(model_answers, anwser)  # returns list[int]: 1 if correct, 0 otherwise
+model_answer = tg.generate(question)
+eval_fn(model_answer, anwser)  # Returns list[int]: 1 if correct, 0 otherwise
 ```
