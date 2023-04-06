@@ -75,7 +75,7 @@ def parse_args():
 
 
 def get_repo_info() -> str:
-    """Returns info about current repo in a string for """
+    """Returns info about current repo."""
     repo = Repo(ROOT_DIR)
     repo_url_main = repo.git.remote("get-url", "origin")
     commit_hash = repo.git.rev_parse("HEAD")
@@ -188,9 +188,7 @@ def check_files_exist_locally(args: argparse.Namespace, config: dict) -> None:
     local_dir = config["results"]["dir"]["local"]
     filenames = get_resulting_filenames(args, config)
 
-    output_filepaths = [
-        Path(local_dir) / filename for filename in filenames.values()
-    ]
+    output_filepaths = [Path(local_dir) / filename for filename in filenames.values()]
     existing_paths = [path for path in output_filepaths if path.exists()]
 
     if existing_paths:
@@ -229,7 +227,10 @@ def save_results_locally(
         f.write(get_hardware_info())
 
     # Save environment.yaml to local_dir
-    shutil.copy(ROOT_DIR / "environment.yaml", Path(local_dir) / filenames["environment"])
+    shutil.copy(
+        ROOT_DIR / "environment.yaml",
+        Path(local_dir) / filenames["environment"]
+    )
 
 
 def validate_s3_uri(s3_uri: str) -> None:
@@ -412,8 +413,8 @@ def generate_ids_files(config: dict, seq_len: int) -> None:
     df_le = df[df["seq_len_with_template"] <= seq_len][["data_id"]]
     df_gt = df[df["seq_len_with_template"] > seq_len][["data_id"]]
 
-    df_le.to_csv(f"ids_le{seq_len}.txt", index=False, header=False, sep='\n')
-    df_gt.to_csv(f"ids_gt{seq_len}.txt", index=False, header=False, sep='\n')
+    df_le.to_csv(f"ids_le{seq_len}.txt", index=False, header=False, sep="\n")
+    df_gt.to_csv(f"ids_gt{seq_len}.txt", index=False, header=False, sep="\n")
 
     print(f"ids_le{seq_len}.txt: contains {len(df_le)} ids that are <= {seq_len}")
     print(f"ids_gt{seq_len}.txt: contains {len(df_gt)} ids that are > {seq_len}")
@@ -524,7 +525,7 @@ def main():
         df = get_token_seq_lens(
             dataset, tokenizer, qids,
             prompt_template=config["prompt_template"],
-            use_tqdm=True
+            use_tqdm=True,
         )
 
         median_seq_len = df["seq_len_with_template"].median()
@@ -681,7 +682,7 @@ def main():
         if new_qids:
             batch_qa["qid"] = new_qids
             batch_qa["question"] = batch_qa["qid"].apply(lambda x: dataset[x][0])
-            batch_qa["answer"] = batch_qa["qid"].apply(lambda x: ';'.join(dataset[x][1]))  # type: ignore
+            batch_qa["answer"] = batch_qa["qid"].apply(lambda x: ";".join(dataset[x][1]))  # type: ignore
             qa_pairs = pd.concat([qa_pairs, batch_qa], ignore_index=True)
 
         questions_in_batch = len(batch) / generations_per_question

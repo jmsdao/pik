@@ -46,7 +46,4 @@ class TriviaQADataset(Dataset):
         else:
             answer_aliases = [ans['normalized_aliases'] for ans in datasubset['answer']]
 
-        return (
-            question,
-            answer_aliases,
-        )
+        return (question, answer_aliases)

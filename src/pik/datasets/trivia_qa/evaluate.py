@@ -46,9 +46,7 @@ def evaluate_answer(
         results (list[int]): 1 if model answer is correct, 0 otherwise
     """
     if isinstance(model_answers, str) and not isinstance(dataset_answers[0], str):
-        raise ValueError(
-            "If model_answers is str, dataset_answers expects list[str]."
-        )
+        raise ValueError("If model_answers is str, dataset_answers expects list[str].")
     if (isinstance(model_answers, list) and isinstance(model_answers[0], str)) and not (
         isinstance(dataset_answers[0], list) and isinstance(dataset_answers[0][0], str)
     ):
