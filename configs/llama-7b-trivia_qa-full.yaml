@@ -21,7 +21,7 @@ generation:
     do_sample: True
     temperature: 1
     eos_token_id: 13  # Stop generating when a llama's newline is generated
-    pad_token_id: 1  # Token ID 1 should be llama's empty string
+    pad_token_id: 2  # use llama's eos_token for right padding
 
 
 results:

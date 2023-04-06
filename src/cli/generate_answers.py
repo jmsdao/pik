@@ -63,6 +63,13 @@ def parse_args():
         "-e", "--estimate", action="store_true",
         help="Estimate the total runtime of the script without running fully.",
     )
+    parser.add_argument(
+        "-s", "--split-ids", metavar="SEQ_LEN", type=int, nargs='?',
+        help=(
+            "Split data ids from a given config by the given sequence length, and "
+            "save the ids into two separate files (does not run experiment)."
+        )
+    )
 
     return parser.parse_args()
 
@@ -379,6 +386,41 @@ def save_results_s3(
         print("Continuing...")
 
 
+def generate_ids_files(config: dict, seq_len: int) -> None:
+    dataset = load_dataset(config["dataset"]["name"])
+    tokenizer = load_tokenizer(config["model"])
+    ids_file = config["dataset"].get("ids_file", None)
+
+    # Get question ids of questions to process
+    if ids_file:
+        qids = get_data_ids_from_file(dataset, ids_file)
+    else:
+        qids = get_data_ids(
+            dataset,
+            num_items=config["dataset"]["num_questions"],
+            skip=config["dataset"].get("skip", None),
+            shuffle=config["dataset"]["shuffle"],
+            shuffle_seed=config["dataset"].get("seed", None),
+        )
+
+    df = get_token_seq_lens(
+        dataset, tokenizer, qids,
+        prompt_template=config["prompt_template"],
+        use_tqdm=True
+    )
+
+    df_le = df[df["seq_len_with_template"] <= seq_len][["data_id"]]
+    df_gt = df[df["seq_len_with_template"] > seq_len][["data_id"]]
+
+    df_le.to_csv(f"ids_le{seq_len}.txt", index=False, header=False, sep='\n')
+    df_gt.to_csv(f"ids_gt{seq_len}.txt", index=False, header=False, sep='\n')
+
+    print(f"ids_le{seq_len}.txt: contains {len(df_le)} ids that are <= {seq_len}")
+    print(f"ids_gt{seq_len}.txt: contains {len(df_gt)} ids that are > {seq_len}")
+
+    sys.exit()
+
+
 # --- MAIN --------------------------------------------------------------------
 def main():
     args = parse_args()
@@ -391,6 +433,10 @@ def main():
     # Validate ids_file path if specified
     ids_file = config["dataset"].get("ids_file", None)
     validate_file(ids_file)
+
+    if args.split_ids:
+        generate_ids_files(config, args.split_ids)
+        sys.exit()
 
     filenames = get_resulting_filenames(args, config)
 
