@@ -13,11 +13,11 @@ import torch
 import yaml
 from dotenv import dotenv_values
 from git.repo import Repo
-from tqdm.auto import tqdm
+from tqdm.auto import tqdm, trange
 from transformers import GenerationConfig
 
 from pik import ROOT_DIR
-from pik.datasets import load_dataset, get_eval_fn
+from pik.datasets import get_eval_fn, load_dataset
 from pik.datasets.utils import get_data_ids, get_data_ids_from_file, get_token_seq_lens
 from pik.models import load_model, load_tokenizer
 from pik.models.text_generation import TextGenerator
@@ -26,7 +26,8 @@ torch.set_grad_enabled(False)
 
 
 SECRETS = dotenv_values(Path(ROOT_DIR, ".env"))
-N_TESTS = 3  # Number of questions to process when estimating
+N_TESTS_MEMORY = 3
+N_TESTS_TIME = 5
 LINE_BREAK = "-" * 80
 
 
@@ -101,6 +102,13 @@ def get_hardware_info() -> str:
     return info
 
 
+def gpu_usage():
+    """Print GPU usage."""
+    for i, gpu in enumerate(GPUtil.getGPUs()):
+        print(f"GPU {i}:  {int(gpu.memoryUsed)} / {int(gpu.memoryTotal)}", end="")
+        print(f" MB  ({(gpu.memoryUsed / gpu.memoryTotal) * 100 :.2f}%)")
+
+
 def validate_config(cli: str) -> None:
     """Validate config file."""
     # Future feature: validate config file against a schema
@@ -110,6 +118,11 @@ def validate_config(cli: str) -> None:
     elif cli not in ["generate_answers", "gen-answers"]:
         print(f'Error: config file is for "{cli}"')
         sys.exit()
+
+
+def append_postfix(filename, postfix):
+    """Append a postfix to a filename"""
+    return Path(filename).stem + postfix + Path(filename).suffix
 
 
 def validate_local_dir(local_dir: str) -> None:
@@ -145,22 +158,32 @@ def validate_file(file: str) -> None:
             sys.exit()
 
 
-def check_files_exist_locally(
-    args: argparse.Namespace,
-    config: dict,
-) -> None:
+def get_resulting_filenames(args: argparse.Namespace, config: dict) -> dict:
+    postfix = config["results"].get("postfix", "")
+
+    filenames = {}
+    for key, name in config["results"]["files"].items():
+        filenames[key] = append_postfix(name, postfix)
+
+    filenames["config"] = Path(args.config).name
+    filenames["repo_info"] = append_postfix("repo_info.txt", postfix)
+    filenames["hardware_info"] = append_postfix("hardware_info.txt", postfix)
+    filenames["environment"] = append_postfix("environment.yaml", postfix)
+
+    # Sort the dict by value
+    filenames = dict(sorted(filenames.items(), key=lambda item: item[1]))
+
+    return filenames
+
+
+def check_files_exist_locally(args: argparse.Namespace, config: dict) -> None:
     """Alert user if any local filepaths already exist."""
     local_dir = config["results"]["dir"]["local"]
+    filenames = get_resulting_filenames(args, config)
+
     output_filepaths = [
-        Path(local_dir) / Path(args.config).name,
-        Path(local_dir) / "repo_info.txt",
-        Path(local_dir) / "hardware_info.txt",
-        Path(local_dir) / "environment.yaml",
+        Path(local_dir) / filename for filename in filenames.values()
     ]
-
-    for filename in config["results"]["files"].values():
-        output_filepaths.append(Path(local_dir) / filename)
-
     existing_paths = [path for path in output_filepaths if path.exists()]
 
     if existing_paths:
@@ -178,31 +201,28 @@ def save_results_locally(
 ) -> None:
     """Save results locally."""
     local_dir = config["results"]["dir"]["local"]
+    filenames = get_resulting_filenames(args, config)
 
     # Save config file local_dir
     shutil.copy(args.config, Path(local_dir))
 
     # Save text generations local_dir
-    text_gens.to_csv(
-        Path(local_dir) / config["results"]["files"]["text_generations"], index=False
-    )
+    text_gens.to_csv(Path(local_dir) / filenames["text_generations"], index=False)
 
     # Save QA pairs local_dir
     qa_pairs["qid"] = qa_pairs["qid"].astype(int)
-    qa_pairs.to_csv(
-        Path(local_dir) / config["results"]["files"]["qa_pairs"], index=False
-    )
+    qa_pairs.to_csv(Path(local_dir) / filenames["qa_pairs"], index=False)
 
     # Save repo info local_dir
-    with open(Path(local_dir) / "repo_info.txt", "w") as f:
+    with open(Path(local_dir) / filenames["repo_info"], "w") as f:
         f.write(get_repo_info())
 
     # Save hardware info local_dir
-    with open(Path(local_dir) / "hardware_info.txt", "w") as f:
+    with open(Path(local_dir) / filenames["hardware_info"], "w") as f:
         f.write(get_hardware_info())
 
     # Save environment.yaml to local_dir
-    shutil.copy(ROOT_DIR / "environment.yaml", Path(local_dir))
+    shutil.copy(ROOT_DIR / "environment.yaml", Path(local_dir) / filenames["environment"])
 
 
 def validate_s3_uri(s3_uri: str) -> None:
@@ -237,19 +257,13 @@ def check_files_exist_s3(
     config: dict,
 ) -> None:
     """Alert user if any s3 filepaths already exist."""
+    filenames = get_resulting_filenames(args, config)
+
     s3_uri = config["results"]["dir"]["s3"]
     bucket_name, s3_key_prefix = get_s3_bucket_name_and_key(s3_uri)
     bucket = connect_to_s3(bucket_name)
 
-    output_keys = [
-        s3_key_prefix + Path(args.config).name,
-        s3_key_prefix + "repo_info.txt",
-        s3_key_prefix + "hardware_info.txt",
-        s3_key_prefix + "environment.yaml",
-    ]
-
-    for filename in config["results"]["files"].values():
-        output_keys.append(s3_key_prefix + filename)
+    output_keys = [s3_key_prefix + fname for fname in filenames.values()]
 
     existing_keys = []
     try:
@@ -292,13 +306,15 @@ def save_results_s3(
     qa_pairs: pd.DataFrame,
 ) -> None:
     """Save results to s3."""
+    filenames = get_resulting_filenames(args, config)
+
     s3_uri = config["results"]["dir"]["s3"]
     bucket_name, s3_key_prefix = get_s3_bucket_name_and_key(s3_uri)
     bucket = connect_to_s3(bucket_name)
 
     config_key = s3_key_prefix + Path(args.config).name
-    text_gens_key = s3_key_prefix + config["results"]["files"]["text_generations"]
-    qa_pairs_key = s3_key_prefix + config["results"]["files"]["qa_pairs"]
+    text_gens_key = s3_key_prefix + filenames["text_generations"]
+    qa_pairs_key = s3_key_prefix + filenames["qa_pairs"]
 
     # Upload config file
     try:
@@ -331,35 +347,35 @@ def save_results_s3(
 
     # Upload repo info from IO buffer
     repo_info = get_repo_info()
-    repo_info_key = s3_key_prefix + "repo_info.txt"
+    repo_info_key = s3_key_prefix + filenames["repo_info"]
     try:
         csv_buffer = StringIO()
         csv_buffer.write(repo_info)
         bucket.put_object(Body=csv_buffer.getvalue(), Key=repo_info_key)
     except Exception as e:
         print(e)
-        print(f"Warning: failed to upload repo_info.txt to s3 {repo_info_key}")
+        print(f"Warning: failed to upload {filenames['repo_info']} to s3 {repo_info_key}")
         print("Continuing...")
 
     # Upload hardware info from IO buffer
     hardware_info = get_hardware_info()
-    hardware_info_key = s3_key_prefix + "hardware_info.txt"
+    hardware_info_key = s3_key_prefix + filenames["hardware_info"]
     try:
         csv_buffer = StringIO()
         csv_buffer.write(hardware_info)
         bucket.put_object(Body=csv_buffer.getvalue(), Key=hardware_info_key)
     except Exception as e:
         print(e)
-        print(f"Warning: failed to upload hardware_info.txt to s3 {hardware_info_key}")
+        print(f"Warning: failed to upload {filenames['hardware_info']} to s3 {hardware_info_key}")
         print("Continuing...")
 
     # Upload environment.yaml
-    environment_key = s3_key_prefix + "environment.yaml"
+    environment_key = s3_key_prefix + filenames["environment"]
     try:
         bucket.upload_file(str(ROOT_DIR / "environment.yaml"), environment_key)
     except Exception as e:
         print(e)
-        print(f"Warning: failed to upload environment.yaml to s3 {environment_key}")
+        print(f"Warning: failed to upload {filenames['environment']} to s3 {environment_key}")
         print("Continuing...")
 
 
@@ -375,6 +391,8 @@ def main():
     # Validate ids_file path if specified
     ids_file = config["dataset"].get("ids_file", None)
     validate_file(ids_file)
+
+    filenames = get_resulting_filenames(args, config)
 
     if args.estimate:
         print(f"Estimating runtime of full experiment from config {args.config}")
@@ -454,42 +472,96 @@ def main():
 
     # --- RUN ESTIMATION ------------------------------------------------------
     if args.estimate:
-        raise NotImplementedError("Estimation needs fixing")
         print(LINE_BREAK)
-        print("Generating text outputs...")
+        print("Finding input sequence length distribution (num tokens)...")
+
+        df = get_token_seq_lens(
+            dataset, tokenizer, qids,
+            prompt_template=config["prompt_template"],
+            use_tqdm=True
+        )
+
+        median_seq_len = df["seq_len_with_template"].median()
+        idx_median = (df["seq_len_with_template"] - median_seq_len).abs().idxmin()
+
+        max_seq_len = int(df["seq_len_with_template"].max())
+        idx_max = int(df["seq_len_with_template"].idxmax())
+
+        # Get deciles
+        bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+        deciles = df["seq_len_with_template"].quantile(bins).round(1).tolist()
+        print(f"\nDeciles: {deciles}")
+        print(f"Median sequence length: {median_seq_len} (closest data_id={idx_median})")
+        print(f"Max sequence length: {max_seq_len} (data_id={idx_max})")
+
+        # Estimate GPU memory usage
+        if GPUtil.getGPUs():
+            print(LINE_BREAK)
+            for test in ["median", "max"]:
+                idx = idx_median if test == "median" else idx_max
+                print(f"Estimating {test} GPU memory usage using data_id={idx}...")
+
+                question, _ = dataset[idx]  # type: ignore
+                text_input = text_generator.prompt_engineer(
+                    config["prompt_template"], question
+                )
+                text_inputs = [text_input] * batch_size
+
+                # Run median memory test and print results
+                for _ in trange(N_TESTS_MEMORY):
+                    text_generator.generate(text_inputs)
+                print(f"GPU memory usage ({test}):")
+                gpu_usage()
+
+        torch.cuda.empty_cache()
+
+        # Estimate time taken
+        print(LINE_BREAK)
+        print(f"Estimating generation time using data_id={idx_median} (median)...")
+
+        batched_qids = text_generator.get_batched_data_ids(
+            [idx_median] * N_TESTS_TIME, generations_per_question, batch_size  # type: ignore
+        )
+
+        bar_format = (
+            "{desc}{percentage:.1f}%|{bar}| {n:.1f}/{total_fmt} "
+            "[{elapsed}<{remaining},{rate_fmt}{postfix}]"
+        )
+        progress_bar = tqdm(total=N_TESTS_TIME, bar_format=bar_format)
         start = time()
-        progress_bar = trange(N_TESTS)
-        for i in progress_bar:
+        for batch in batched_qids:
             # Prep inputs
-            question, answers = dataset[qids[i]]
-            text_input = text_generator.prompt_engineer(
-                config["prompt_template"], question
+            if isinstance(batch, int):
+                batch = [batch]
+            questions, answers = dataset[batch]
+            text_inputs = text_generator.prompt_engineer(
+                config["prompt_template"], questions
             )
 
             # Generate model ouputs and evaluate
-            text_outputs = text_generator.generate(
-                text_input,  # type: ignore
-                num_generations=generations_per_question,
-                batchsize_per_pass=batchsize_per_pass,
-            )
-            evaluations = eval_fn(text_outputs, answers)  # type: ignore
+            text_outputs = text_generator.generate(text_inputs)
+            evaluations = eval_fn(text_outputs, answers)
 
+            # Update progress bar
+            questions_in_batch = len(batch) / generations_per_question
+            progress_bar.update(questions_in_batch)
+
+        progress_bar.close()
         time_taken = time() - start
 
-        # Print estimation parameters and results
-        print(LINE_BREAK)
+        # Print time estimation results
         print(
-            f"Estimation parameters:\n"
-            f"Num questions processed = {N_TESTS}\n"
+            f"\nTime estimation parameters:\n"
+            f"Num questions processed = {N_TESTS_TIME}\n"
             f"Generations per question = {generations_per_question}\n"
-            f"Max generations per forward pass = {batchsize_per_pass}\n"
+            f"Max batch size = {batch_size}\n"
             f"Max new tokens per generation = {max_new_tokens}\n"
             f"\n"
             f"Average processing time per question:\n"
-            f"{time_taken / N_TESTS :.2f} seconds\n"
+            f"{time_taken / N_TESTS_TIME :.2f} seconds\n"
             f"\n"
             f"Estimated duration to process {num_questions} questions:\n"
-            f"{(time_taken / N_TESTS) * num_questions / 3600 :.3f} hours\n\n"
+            f"{(time_taken / N_TESTS_TIME) * num_questions / 3600 :.3f} hours\n\n"
             f"Note: does not include time taken to write to disk or upload to s3"
         )
 
@@ -497,23 +569,17 @@ def main():
         print(LINE_BREAK)
         if local_dir:
             print("Output files to be saved to local disk:")
-            for filename in config["results"]["files"].values():
-                print(f"  {Path(local_dir) / filename}")
-            print(f"  {Path(local_dir) / Path(args.config).name}")
-            print(f"  {Path(local_dir) / 'repo_info.txt'}")
-            print(f"  {Path(local_dir) / 'hardware_info.txt'}")
-            print(f"  {Path(local_dir) / 'environment.txt'}\n")
+            for fname in filenames.values():
+                print(f"  {Path(local_dir) / fname}")
+            print()
 
         if s3_uri:
             if not s3_uri.endswith("/"):
                 s3_uri += "/"
             print("Output files to be saved to s3:")
-            for filename in config["results"]["files"].values():
-                print(f"  {s3_uri}{filename}")
-            print(f"  {s3_uri}{Path(args.config).name}")
-            print(f"  {s3_uri}{'repo_info.txt'}")
-            print(f"  {s3_uri}{'hardware_info.txt'}")
-            print(f"  {s3_uri}{'environment.txt'}\n")
+            for fname in filenames.values():
+                print(f"  {s3_uri}{fname}")
+            print()
 
         if config["results"]["overwrite"]:
             print("WARNING: Overwrite flag is set to True.")
@@ -539,13 +605,10 @@ def main():
     )
 
     bar_format = (
-        "{desc}: {percentage:.1f}%|{bar}| {n:.1f}/{total_fmt} "
+        "{desc}{percentage:.1f}%|{bar}| {n:.1f}/{total_fmt} "
         "[{elapsed}<{remaining},{rate_fmt}{postfix}]"
     )
-    progress_bar = tqdm(
-        total=num_questions,
-        bar_format=bar_format,
-    )
+    progress_bar = tqdm(total=num_questions, bar_format=bar_format)
     for batch in batched_qids:
         # Prep inputs
         if isinstance(batch, int):
@@ -575,29 +638,31 @@ def main():
             batch_qa["answer"] = batch_qa["qid"].apply(lambda x: ';'.join(dataset[x][1]))  # type: ignore
             qa_pairs = pd.concat([qa_pairs, batch_qa], ignore_index=True)
 
-        # Update progress bar
         questions_in_batch = len(batch) / generations_per_question
+        num_questions_processed += questions_in_batch
 
+        # Update progress bar
         mean_evals_per_qid = (
             batch_tg[["qid", "evaluation"]]
             .groupby("qid").mean().round(3)
             ["evaluation"].tolist()
         )
-        progress_bar.update(questions_in_batch)
-        progress_bar.set_description(
+        bar_desc = (
             f"qids in batch: {qids_in_batch}, "
             f"mean evals per qid: {mean_evals_per_qid}"
         )
+        if save_frequency and num_questions_processed >= save_frequency:
+            bar_desc += " (saving results...)"
+        progress_bar.update(questions_in_batch)
+        progress_bar.set_description(bar_desc)
 
         # Periodically save results
-        if save_frequency:
-            num_questions_processed += questions_in_batch
-            if num_questions_processed >= save_frequency:
-                num_questions_processed = 0
-                if local_dir:
-                    save_results_locally(args, config, text_gens, qa_pairs)
-                if s3_uri:
-                    save_results_s3(args, config, text_gens, qa_pairs)
+        if save_frequency and num_questions_processed >= save_frequency:
+            num_questions_processed = 0
+            if local_dir:
+                save_results_locally(args, config, text_gens, qa_pairs)
+            if s3_uri:
+                save_results_s3(args, config, text_gens, qa_pairs)
 
     progress_bar.close()
 

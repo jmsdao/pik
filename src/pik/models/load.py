@@ -98,6 +98,7 @@ def load_tokenizer(model_name: str, **kwargs) -> tuple:
             repo_id="decapoda-research/llama-7b-hf", filename="tokenizer.model"
         )
         tokenizer = LlamaTokenizer.from_pretrained(tokenizer_location, **kwargs)
+        tokenizer.pad_token = tokenizer.bos_token
 
     # Catch all for models not implemented
     else:

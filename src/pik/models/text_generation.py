@@ -7,7 +7,7 @@ from pik.datasets.utils import chunked
 def _get_default_generation_config(tokenizer) -> GenerationConfig:
     """Returns a default generation config for a given tokenizer."""
 
-    if "gpt2" in str(tokenizer.__class__):
+    if "gpt2" in str(tokenizer.__class__).lower():
         return GenerationConfig(
             max_new_tokens=16,
             do_sample=True,
@@ -16,7 +16,14 @@ def _get_default_generation_config(tokenizer) -> GenerationConfig:
             eos_token_id=tokenizer("\n")["input_ids"][0],
         )
 
-    # TODO: add default for llamas
+    elif "llama" in str(tokenizer.__class__).lower():
+        return GenerationConfig(
+            max_new_tokens=16,
+            do_sample=True,
+            temperature=1,
+            pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=13,  # llama's newline token id
+        )
 
     raise ValueError(f'No default generation config for tokenizer "{tokenizer}"')
 

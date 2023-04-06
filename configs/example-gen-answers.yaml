@@ -5,16 +5,16 @@ model: test  # Required (str)
 dataset:
   name: trivia_qa  # Required (str)
   num_questions: 10  # Required (int or "all")
-  skip: 0  # Optional (int): skip the first N questions
+  skip: 0  # Optional (int): skip the first N questions. Total questions processed will be `num_questions - skip`
   shuffle: True  # Required (bool)
   seed: 42  # Optional (int or None): seed used to shuffle the dataset, ignored if shuffle is False
-  # ids_file: nums.txt  # Optional (str): path to file containing question ids to index the dataset
-                        # If used, num_questions, skip, shuffle and seed are ignored
-                        # Integers in file can be separated by newlines, spaces or commas
+  # ids_file: ids.txt  # Optional (str): path to file containing question ids to index the dataset
+                       # If used, num_questions, skip, shuffle and seed are ignored
+                       # Integers in file can be separated by newlines, spaces or commas
 generation:
   seed: 1337  # Optional (int): random seed for reproducibility, set before each question
-  generations_per_question: 5  # Required (int)
-  batch_size: 3  # Required (int): max batch size per model forward pass
+  generations_per_question: 3  # Required (int)
+  batch_size: 5  # Required (int): max batch size per model forward pass
   config:  # Required (dict): overrides for model's GenerationConfig
            # For more details, see: https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
     max_new_tokens: 16
@@ -27,12 +27,13 @@ generation:
 results:
   dir:
     local: ./results  # Required (dir) if s3 is not specified, otherwise optional
-    # s3: s3://your-bucket/experiments/test/  # Required (s3 uri) if local is not specified, otherwise optional
+    # s3: s3://YOUR-BUCKET/experiments/test/  # Required (s3 uri) if local is not specified, otherwise optional
   files:
     text_generations: text_generations.csv  # Required (str)
     qa_pairs: qa_pairs.csv  # Required (str)
-  # save_frequency: 3  # Optional (int): save results every N questions, otherwise only save at the end
-  overwrite: True  # Required (bool): overwrite existing results.
+  save_frequency: 4  # Optional (int): save results every N questions, otherwise only save at the end
+  # postfix: _part1  # Optional (str): postfix to append to results filenames
+  overwrite: False  # Required (bool): overwrite existing results.
                     # If False, will fail if any results already exist
 
 # Required (str): must include a "{}" to replace with a question

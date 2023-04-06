@@ -144,9 +144,11 @@ def get_token_seq_lens(
             input = dataset[i][dataset_input_index]
         else:
             input = dataset[i]
-        prompt = prompt_template.format(input=input)
+        prompt = prompt_template.format(input)
         prompt_len = len(tokenizer(prompt)["input_ids"])
         input_len = len(tokenizer(input)["input_ids"])
         df["seq_len_with_template"] = df["seq_len"] + prompt_len - input_len
+
+    df = df.astype(int)
 
     return df
