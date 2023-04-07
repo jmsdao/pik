@@ -8,23 +8,24 @@ dataset:
   # skip: 0  # Optional (int): skip the first N questions
   shuffle: False  # Required (bool)
   # seed: 42  # Optional (int or None): seed used to shuffle the dataset, ignored if shuffle is False
-  # ids_file: nums.txt  # Optional (str): path to file containing question ids to index the dataset
+  # ids_file: ids.txt  # Optional (str): path to file containing question ids to index the dataset
                         # If used, num_questions, skip, shuffle and seed are ignored
                         # Integers in file can be separated by newlines, spaces or commas
 generation:
-  seed: 1337  # Optional (int): random seed for reproducibility, set before each question
+  seed: 1337  # Optional (int): random seed for reproducibility, set at the start of the run
   generations_per_question: 40  # Required (int)
-  batchsize_per_pass: 20  # Required (int): max batch size per model forward pass
+  batch_size: 20  # Required (int): max batch size per model forward pass
   config:  # Required (dict): overrides for model's GenerationConfig
            # For more details, see: https://huggingface.co/docs/transformers/main_classes/text_generation#transformers.GenerationConfig
     max_new_tokens: 16
     do_sample: True
     temperature: 1
     eos_token_id: 13  # Stop generating when a llama's newline is generated
-    pad_token_id: 2  # use llama's eos_token for right padding
+    pad_token_id: 2  # Use llama's eos_token for right padding
 
 
 results:
+  # postfix: _part1  # Optional (str): postfix to append to results filenames
   dir:
     # local: ./results  # Required (dir) if s3 is not specified, otherwise optional
     s3: s3://<REDACTED_BUCKET>/experiments/run01/  # Required (s3 uri) if local is not specified, otherwise optional

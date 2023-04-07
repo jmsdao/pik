@@ -530,25 +530,27 @@ def main():
 
         median_seq_len = df["seq_len_with_template"].median()
         idx_median = (df["seq_len_with_template"] - median_seq_len).abs().idxmin()
+        data_id_median = int(df.loc[idx_median, "data_id"])  # type: ignore
 
         max_seq_len = int(df["seq_len_with_template"].max())
         idx_max = int(df["seq_len_with_template"].idxmax())
+        data_id_max = int(df.loc[idx_max, "data_id"])  # type: ignore
 
         # Get deciles
         bins = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
         deciles = df["seq_len_with_template"].quantile(bins).round(1).tolist()
         print(f"\nDeciles: {deciles}")
-        print(f"Median sequence length: {median_seq_len} (closest data_id={idx_median})")
-        print(f"Max sequence length: {max_seq_len} (data_id={idx_max})")
+        print(f"Median sequence length: {median_seq_len} (closest data_id={data_id_median})")
+        print(f"Max sequence length: {max_seq_len} (data_id={data_id_max})")
 
         # Estimate GPU memory usage
         if GPUtil.getGPUs():
             print(LINE_BREAK)
             for test in ["median", "max"]:
-                idx = idx_median if test == "median" else idx_max
-                print(f"Estimating {test} GPU memory usage using data_id={idx}...")
+                data_id = data_id_median if test == "median" else data_id_max
+                print(f"Estimating {test} GPU memory usage using data_id={data_id}...")
 
-                question, _ = dataset[idx]  # type: ignore
+                question, _ = dataset[data_id]  # type: ignore
                 text_input = text_generator.prompt_engineer(
                     config["prompt_template"], question
                 )
@@ -557,17 +559,18 @@ def main():
                 # Run median memory test and print results
                 for _ in trange(N_TESTS_MEMORY):
                     text_generator.generate(text_inputs)
-                print(f"GPU memory usage ({test}):")
+                print(f"\nGPU memory usage ({test}):")
                 gpu_usage()
-
-        torch.cuda.empty_cache()
+                torch.cuda.empty_cache()
+                if test == "median":
+                    print()
 
         # Estimate time taken
         print(LINE_BREAK)
-        print(f"Estimating generation time using data_id={idx_median} (median)...")
+        print(f"Estimating generation time using data_id={data_id_median} (median)...")
 
         batched_qids = text_generator.get_batched_data_ids(
-            [idx_median] * N_TESTS_TIME, generations_per_question, batch_size  # type: ignore
+            [data_id_median] * N_TESTS_TIME, generations_per_question, batch_size  # type: ignore
         )
 
         bar_format = (
@@ -636,6 +639,8 @@ def main():
         sys.exit()
 
     # --- RUN EXPERIMENT ------------------------------------------------------
+    if config["generation"].get("seed", None):
+        torch.manual_seed(config["generation"]["seed"])
     save_frequency = config["results"].get("save_frequency", None)
     num_questions_processed = 0
 
