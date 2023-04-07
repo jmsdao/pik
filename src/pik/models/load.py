@@ -101,7 +101,7 @@ def load_tokenizer(model_name: str, **kwargs) -> tuple:
             repo_id="decapoda-research/llama-7b-hf", filename="tokenizer.model"
         )
         tokenizer = LlamaTokenizer.from_pretrained(
-            Path(tokenizer_location).parent, **kwargs
+            Path(tokenizer_location).parent, padding_side="left", **kwargs
         )
         tokenizer.pad_token_id = tokenizer.bos_token_id
 
