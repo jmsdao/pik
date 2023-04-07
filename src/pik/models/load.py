@@ -1,4 +1,7 @@
 # This script uses conditional imports to minimize slow imports.
+from pathlib import Path
+
+
 SMALL_MODELS = ["gpt2"]
 LARGE_MODELS = ["llama-7b", "llama-13b", "llama-30b", "llama-65b"]
 IMPLEMENTED_MODELS = SMALL_MODELS + LARGE_MODELS
@@ -97,7 +100,9 @@ def load_tokenizer(model_name: str, **kwargs) -> tuple:
         tokenizer_location = hf_hub_download(
             repo_id="decapoda-research/llama-7b-hf", filename="tokenizer.model"
         )
-        tokenizer = LlamaTokenizer.from_pretrained(tokenizer_location, **kwargs)
+        tokenizer = LlamaTokenizer.from_pretrained(
+            Path(tokenizer_location).parent, **kwargs
+        )
         tokenizer.pad_token = tokenizer.bos_token
 
     # Catch all for models not implemented
