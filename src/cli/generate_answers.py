@@ -26,8 +26,8 @@ torch.set_grad_enabled(False)
 
 
 SECRETS = dotenv_values(Path(ROOT_DIR, ".env"))
-N_TESTS_MEMORY = 3
-N_TESTS_TIME = 5
+N_TESTS_MEMORY = 3  # Number of passes with full batch size
+N_TESTS_TIME = 5  # Number of questions to process
 LINE_BREAK = "-" * 80
 
 
@@ -678,6 +678,7 @@ def main():
         batch_tg = pd.DataFrame()
         batch_tg["qid"] = batch
         batch_tg["model_answer"] = text_outputs
+        batch_tg["model_answer"] = batch_tg["model_answer"].str.rstrip()
         batch_tg["evaluation"] = evaluations
         text_gens = pd.concat([text_gens, batch_tg], ignore_index=True)
 

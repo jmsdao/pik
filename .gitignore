@@ -1,7 +1,9 @@
 zTODO.md
 zscratch.py
-results/
 zznb.ipynb
+results/
+ids_le*.txt
+ids_gt*.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
