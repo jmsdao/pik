@@ -45,12 +45,20 @@ sudo apt-get install vim  # If you don't have an editor installed
 mamba env create -f environment.yaml && mamba activate pik
 ```
 
-5. Install the source packages from this repo:
+5. Check that `which pip` points to the `pik` mamba environment, and correct it if needed:
+```bash
+which pip  # Should be something like: /home/<user>/mambaforge/envs/pik/bin/pip
+```
+```bash
+export PATH="$CONDA_PREFIX/bin:$PATH"  # If needed
+```
+
+6. Install the source packages from this repo:
 ```bash
 pip install -e .
 ```
 
-6. Launch your Python interpreter and check that the `pik` package is installed:
+7. Launch your Python interpreter and check that the `pik` package is installed:
 ```python
 python
 >>> import pik
@@ -58,7 +66,7 @@ python
 PosixPath('/<abs_path_to>/pik')
 ```
 
-7. If you're planning to use S3 functionality, make sure you add your AWS credentials to the [`.env`](https://github.com/jmsdao/pik/blob/main/.env) file:
+8. If you're planning to use S3 functionality, make sure you add your AWS credentials to the [`.env`](https://github.com/jmsdao/pik/blob/main/.env) file:
 
 > **Warning**  
 > BE CAREFUL NOT TO COMMIT YOUR CREDENTIALS TO GITHUB!
