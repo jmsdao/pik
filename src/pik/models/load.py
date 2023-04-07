@@ -103,7 +103,7 @@ def load_tokenizer(model_name: str, **kwargs) -> tuple:
         tokenizer = LlamaTokenizer.from_pretrained(
             Path(tokenizer_location).parent, **kwargs
         )
-        tokenizer.pad_token = tokenizer.bos_token
+        tokenizer.pad_token_id = tokenizer.bos_token_id
 
     # Catch all for models not implemented
     else:
