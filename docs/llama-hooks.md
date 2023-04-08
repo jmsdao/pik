@@ -2,7 +2,7 @@ The transformers implementation of LLaMA used by this package can be [found here
 Line numbers mentioned herein refer to the above `modelling_llama.py` file.
 
 > **Note**  
-> Using llama-7b, I pickled a `dict` that contains every activation (except for `model` and `model.embed_tokens`) for just a single input (`seq_len = 32`, which is approximately the median length for TriviaQA), and the `.pkl` file was ~177MB. We'll have to be quite selective about which activations we want to save.
+> Using llama-7b, I pickled a `dict` that contains every activation (except for `model` and `model.embed_tokens`) for just a single input (`seq_len = 32`, which is approximately the median length for TriviaQA), and the `.pkl` file was ~177MB. We'll have to be quite selective about which activations we want to save (though the main culprit is keeping activations at every token).
 
 ---
 
