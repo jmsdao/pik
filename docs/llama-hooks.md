@@ -6,6 +6,38 @@ Line numbers mentioned herein refer to the above `modelling_llama.py` file.
 
 ---
 
+Model structure:
+```bash
+LlamaForCausalLM(
+  (model): LlamaModel(
+    (embed_tokens): Embedding(32000, 4096, padding_idx=31999)
+    (layers): ModuleList(
+      (0-31): 32 x LlamaDecoderLayer(
+        (self_attn): LlamaAttention(
+          (q_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (k_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (v_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (o_proj): Linear(in_features=4096, out_features=4096, bias=False)
+          (rotary_emb): LlamaRotaryEmbedding()
+        )
+        (mlp): LlamaMLP(
+          (gate_proj): Linear(in_features=4096, out_features=11008, bias=False)
+          (down_proj): Linear(in_features=11008, out_features=4096, bias=False)
+          (up_proj): Linear(in_features=4096, out_features=11008, bias=False)
+          (act_fn): SiLUActivation()
+        )
+        (input_layernorm): LlamaRMSNorm()
+        (post_attention_layernorm): LlamaRMSNorm()
+      )
+    )
+    (norm): LlamaRMSNorm()
+  )
+  (lm_head): Linear(in_features=4096, out_features=32000, bias=False)
+)
+```
+
+---
+
 Hookable modules (`layer` is an integer from 0 to 31 inclusive):
 ```bash
 model
@@ -31,7 +63,7 @@ lm_head
 
 ---
 
-Example (from llama-7b) of input/output objects seen in the forward hook function:
+Examples (from llama-7b) of input/output objects seen in the forward hook function:
 ```bash
 model (input):
 # Input is input_ids, but the forward hook function doesn't catch it
@@ -46,7 +78,25 @@ model (output):
 # Can be handy to aggregate attention weights and final hidden states of
 # all layers
 
-BaseModelOutputWithPast
+BaseModelOutputWithPast(
+    .last_hidden_state:
+        torch.Size([1, 7, 4096])
+    .past_key_values:  # Omitted if use_cache=False
+        tuple(
+            32 x tuple(
+                torch.Size([1, 32, 7, 128])  # shape: (batch, nheads, seq_len, head_dims)
+                torch.Size([1, 32, 7, 128])
+            )
+        )
+    .hidden_states:  # Included if output_hidden_states=True
+        tuple(   # .hidden_states[0] is the input embedding, before any decoder layers 
+            33 x torch.Size([1, 7, 4096])  # shape: (batch, seq_len, hidden_dims)
+        )
+    .attentions:  # Included if output_attentions=True
+        tuple(
+            32 x torch.Size([1, 32, 7, 7])  # shape: (batch, nheads, seq_len, seq_len)
+        )
+)
 
 -----
 
@@ -311,6 +361,7 @@ tuple(
 
 lm_head (output):
 # lm_head is a linear layer (L654), different to embed_tokens
+# These are the output logits
 
 torch.Size([1, 7, 32000])  # shape: (batch, seq_len, vocab_size)
 
