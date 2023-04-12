@@ -3,6 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 from time import time
+
 import boto3
 import GPUtil
 from dotenv import dotenv_values
@@ -195,3 +196,14 @@ def check_s3_write_access(
         print(e)
         print(f"Could not write to: {s3_uri}")
         sys.exit()
+
+
+def readable_size(size, decimal_point=3):
+    suffix = "B"
+    for i in ["B", "KB", "MB", "GB", "TB"]:
+        suffix = i
+        if size <= 1000.0:
+            break
+        size /= 1000.0
+
+    return f"{size:.{decimal_point}f} {suffix}"

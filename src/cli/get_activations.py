@@ -1,25 +1,30 @@
 import argparse
+import pickle
+import random
 import sys
-from pathlib import Path
-from functools import partial
 from collections import defaultdict
+from functools import partial
+from pathlib import Path
 
 import torch
 import yaml
+from tqdm.auto import tqdm
 
 from pik.datasets import load_dataset
 from pik.datasets.utils import get_data_ids, get_data_ids_from_file
 from pik.models import load_model, load_tokenizer
 from pik.models.hooks import HookedModule
 
-from .helpers import (
-    Timer, LINE_BREAK,
+from cli.helpers import (
+    Timer, LINE_BREAK, append_postfix, readable_size,
     validate_file, validate_local_dir,
     check_s3_write_access,
     check_files_exist_locally, check_files_exist_s3
 )
 
 torch.set_grad_enabled(False)
+
+N_TESTS = 5
 
 
 def parse_args():
@@ -49,11 +54,6 @@ def validate_config(cli: str) -> None:
         sys.exit()
 
 
-def append_postfix(filename, postfix):
-    """Append a postfix to a filename"""
-    return Path(filename).stem + postfix + Path(filename).suffix
-
-
 def get_metadata_filenames(args: argparse.Namespace, config: dict) -> dict:
     """Get filenames for metadata files to save."""
     postfix = config["results"].get("postfix", "")
@@ -72,13 +72,13 @@ def get_metadata_filenames(args: argparse.Namespace, config: dict) -> dict:
 
 def get_pickle_filenames(
     config: dict,
-    messenger: dict,
+    store: dict,
     num_questions: int,
 ) -> list[str]:
     """Get filenames for pickle files to save activations to."""
     postfix = config.get("postfix", "")
-    messenger_keys = sorted(list(messenger.keys()))
-    file_prefixes = [key + postfix for key in messenger_keys]
+    store_keys = sorted(list(store.keys()))
+    file_prefixes = [key + postfix for key in store_keys]
 
     save_frequency = config["results"].get("save_frequency", None)
     if save_frequency:
@@ -97,12 +97,12 @@ def get_pickle_filenames(
 def get_resulting_filenames(
     args: argparse.Namespace,
     config: dict,
-    messenger: dict,
+    store: dict,
     num_questions: int,
 ) -> dict:
     """Combine pickle and metadata filenames into a single list."""
     filenames = {}
-    for fname in get_pickle_filenames(config, messenger, num_questions):
+    for fname in get_pickle_filenames(config, store, num_questions):
         filenames[fname] = fname
 
     filenames.update(get_metadata_filenames(args, config))
@@ -172,49 +172,128 @@ def main():
         num_questions = len(qids)
     print(f"Number of questions to process: {num_questions}")
 
-    # --- GET RESULTING FILENAMES ---------------------------------------------
-    print(LINE_BREAK)
-    print("Getting resulting filenames...")
+    # --- INIT CONFIG PARAMS AND OTHER SETUP ----------------------------------
 
+    # Get params needed for a forward pass from config
     exec_globals = {}
     exec(config["hook_fns"], exec_globals)
+    modules_to_hook = exec_globals["modules_to_hook"]
+    fwd_hook_function = exec_globals["fwd_hook_function"]
     forward_kwargs = config.get("forward_kwargs", {})
 
-    messenger = defaultdict(list)
+    # Calculate file related params
+    save_frequency = config["results"].get("save_frequency", None)
+    if save_frequency:
+        num_fileparts = int((num_questions / save_frequency).__ceil__())
+    else:
+        num_fileparts = 1
 
+    # Setup activations store and hook functions
+    store = defaultdict(list)
     fwd_hook_fns = []
-    for path in exec_globals["modules_to_hook"]:
-        hook_fn = partial(
-            exec_globals["fwd_hook_function"],
-            module_path=path,
-            messenger=messenger
-        )
+    for path in modules_to_hook:
+        hook_fn = partial(fwd_hook_function, module_path=path, store=store)
         fwd_hook_fns.append((path, hook_fn))
 
+    # Run a forward pass to get the activations
     text = "The content of this is irrelevant"
     encoded_inputs = tokenizer([text], return_tensors="pt").to(model.device)  # type: ignore
     with torch.inference_mode(), hooked_model.hooks(fwd=fwd_hook_fns):
         hooked_model(**encoded_inputs, **forward_kwargs)
 
-    resulting_filenames = get_resulting_filenames(args, config, messenger, num_questions)
+    resulting_filenames = get_resulting_filenames(args, config, store, num_questions)
 
-    # Local file checks
-    if local_dir:
-        validate_local_dir(local_dir)
-        if not config["results"]["overwrite"]:
-            print("Checking if files already exist locally...")
-            check_files_exist_locally(config, resulting_filenames)
+    # Clear store
+    store.clear()
 
-    # S3 checks
-    if s3_uri:
-        if not config["results"]["overwrite"]:
-            print("Checking if files already exist on S3...")
-            check_files_exist_s3(config, resulting_filenames)
-        print(f"Checking write access to {s3_uri}...")
-        check_s3_write_access(args, s3_uri)
-        print("Write access confirmed!")
+    # --- LOCAL AND S3 FILE CHECKS --------------------------------------------
+    if not args.estimate:
+        print(LINE_BREAK)
+        # Local file checks
+        if local_dir and not args.estimate:
+            validate_local_dir(local_dir)
+            if not config["results"]["overwrite"]:
+                print("Checking if files already exist locally...")
+                check_files_exist_locally(config, resulting_filenames)
+
+        # S3 checks
+        if s3_uri and not args.estimate:
+            if not config["results"]["overwrite"]:
+                print("Checking if files already exist on S3...")
+                check_files_exist_s3(config, resulting_filenames)
+            print(f"Checking write access to {s3_uri}...")
+            check_s3_write_access(args, s3_uri)
+            print("Write access confirmed!")
 
     # --- RUN ESTIMATION ------------------------------------------------------
+    if args.estimate:
+        print(LINE_BREAK)
+        print(f"Running file size estimation using {N_TESTS} randomly sampled qids...")
+
+        # Run forward passes to collect activations
+        sampled_qids = random.choices(qids, k=N_TESTS)
+        for qid in tqdm(sampled_qids):
+            question, _ = dataset[qid]
+            text_input = config["prompt_template"].format(question)
+            encoded_inputs = tokenizer([text_input], return_tensors="pt").to(model.device)  # type: ignore
+            with torch.inference_mode(), hooked_model.hooks(fwd=fwd_hook_fns):
+                hooked_model(**encoded_inputs, **forward_kwargs)
+            # Change last `hook_obj` to `(qid, hook_obj)` for each key is store
+            for key in store.keys():
+                store[key][-1] = (qid, store[key][-1])
+
+        # Get test sizes, in bytes
+        test_sizes = {}
+        for key, obj in store.items():
+            tmp_path = Path(key + ".pkl")
+            tmp_path = Path(hex(random.getrandbits(64)))
+            with open(tmp_path, "wb") as fh:
+                pickle.dump(obj, fh)
+            test_sizes[key] = tmp_path.stat().st_size  # type: ignore
+            tmp_path.unlink()
+
+        # Print size estimation results
+        total_size = 0
+        print(f"\nEstimated files sizes for all {num_questions} questions:")
+        for key, size in test_sizes.items():
+            full_size = size * num_questions / N_TESTS
+            total_size += full_size
+            line_item = f"  {key}: {readable_size(full_size)}"
+            if save_frequency and num_fileparts > 1:
+                split_size = size * save_frequency / N_TESTS
+                line_item += (
+                    f" (split into {num_fileparts} parts with max filesize"
+                    f" approx. {readable_size(split_size)})"
+                )
+            print(line_item)
+
+        print(f"\nTotal estimated size: {readable_size(total_size)}")
+
+        # List out files to be saved to local disk and S3
+        print(LINE_BREAK)
+        sorted_filenames = sorted(resulting_filenames.values())
+        if local_dir:
+            print("Output files to be saved to local disk:")
+            for fname in sorted_filenames:
+                print(f"  {Path(local_dir) / fname}")
+            print()
+
+        if s3_uri:
+            if not s3_uri.endswith("/"):
+                s3_uri += "/"
+            print("Output files to be saved to s3:")
+            for fname in sorted_filenames:
+                print(f"  {s3_uri}{fname}")
+            print()
+
+        if config["results"]["overwrite"]:
+            print("WARNING: Overwrite flag is set to True.")
+            print("Make sure you actually want to overwrite existing files!")
+        print(LINE_BREAK)
+
+        sys.exit()
+
+    # --- RUN ACTIVATION COLLECTION -------------------------------------------
     raise NotImplementedError("WIP")
 
 

@@ -4,7 +4,7 @@ cli: get-activations  # Required (str): which CLI this config is for
 model: test  # Required (str)
 dataset:
   name: trivia_qa  # Required (str)
-  num_questions: 10  # Required (int or "all")
+  num_questions: 20  # Required (int or "all")
   skip: 0  # Optional (int): skip the first N questions. Total questions processed will be `num_questions - skip`
   shuffle: True  # Required (bool)
   seed: 42  # Optional (int or None): seed used to shuffle the dataset, ignored if shuffle is False
@@ -15,33 +15,32 @@ results:
   # postfix: _part1  # Optional (str): postfix to append to results filenames
   dir:
     local: ./results  # Required (dir) if s3 is not specified, otherwise optional
-    # s3: s3://YOUR-BUCKET/experiments/test/  # Required (s3 uri) if local is not specified, otherwise optional
-  save_frequency: 4  # Optional (int): save results every N questions, otherwise only save at the end
+    # s3: s3://spar-models-public/experiments/test/  # Required (s3 uri) if local is not specified, otherwise optional
+  save_frequency: 5  # Optional (int): save results every N questions, otherwise only save at the end
   overwrite: False  # Required (bool): overwrite existing results.
                     # If False, will fail if any results already exist
 
-# Optional (dict): kwargs to pass to the model's forward method
-forward_kwargs:
+forward_kwargs:  # Optional (dict): kwargs to pass to the model's forward method
   output_hidden_states: True
 
 # Required (str): Python code to define which modules to hook and a hook function
 # Code will be run with `exec` in the CLI
-# You can assume `re` has been imported
-# `modules_to_hook` is required, and is a list[str]
-# `fwd_hook_function` is required, and is a function
-# `module_path=None` and `messenger=None` are required in the function signature
+# `modules_to_hook` is required, and should be list[str] with valid module paths
+# `fwd_hook_function` is requirs `module_path=None` and `store=None` as kwargs
+# `store` will be a defaultdict(list) used to pass on the activations you want to collect
+# The .keys() of `store` will be used as the prefixes of resulting filenames
 # All tensors MUST be moved to the CPU for pickling
-# `messenger` will be a defaultdict(list) used to pass on the activations you want to collect
-# The .keys() of `messenger` will be used as the prefixes of resulting filenames
+# GOTCHA: when slicing a tensor, you should .clone(), otherwise you'll get a view and save the entire tensor
+# Tip: you can `import re` and use regex to simplify layer-wise collection
 hook_fns: |-
   modules_to_hook = [
       "transformer",
   ]
 
-  def fwd_hook_function(module, input, output, module_path=None, messenger=None) -> None:
+  def fwd_hook_function(module, input, output, module_path=None, store=None) -> None:
       if module_path == "transformer":
-          hidden_states = tuple(t[:, -1, :].cpu() for t in output.hidden_states)
-          messenger["hidden_states"].append(hidden_states)
+          hidden_states = tuple(t[:, -1, :].cpu().clone() for t in output.hidden_states)
+          store["hidden_states"].append(hidden_states)
 
 # Required (str): must include a "{}" to replace with a question
 # Newlines and trailing whitespaces are preserved

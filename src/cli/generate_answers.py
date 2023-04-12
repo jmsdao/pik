@@ -18,7 +18,7 @@ from pik.datasets.utils import get_data_ids, get_data_ids_from_file, get_token_s
 from pik.models import load_model, load_tokenizer
 from pik.models.text_generation import TextGenerator
 
-from .helpers import (
+from cli.helpers import (
     Timer, LINE_BREAK, append_postfix,
     get_repo_info, get_hardware_info,
     validate_file, validate_local_dir,
