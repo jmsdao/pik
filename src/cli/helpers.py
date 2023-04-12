@@ -115,7 +115,7 @@ def check_files_exist_locally(
     local_dir = config["results"]["dir"]["local"]
 
     output_filepaths = [Path(local_dir) / filename for filename in filenames.values()]
-    existing_paths = [path for path in output_filepaths if path.exists()]
+    existing_paths = sorted([path for path in output_filepaths if path.exists()])
 
     if existing_paths:
         print("Error: The following local filepaths already exist:")
@@ -173,6 +173,7 @@ def check_files_exist_s3(
         sys.exit()
 
     if existing_keys:
+        existing_keys = sorted(existing_keys)
         print("Error: The following s3 filepaths already exist:")
         for key in existing_keys:
             print(f"  s3://{bucket_name}/{key}")

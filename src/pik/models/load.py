@@ -65,7 +65,7 @@ def load_model(model_name: str):
     return model
 
 
-def load_tokenizer(model_name: str, **kwargs) -> tuple:
+def load_tokenizer(model_name: str, **kwargs):
     """One-liner for loading a given model's tokenizer from the HuggingFace model hub.
 
     Args:
@@ -111,4 +111,4 @@ def load_tokenizer(model_name: str, **kwargs) -> tuple:
             f"Model '{model_name}' is not implemented. Implemented models: {IMPLEMENTED_MODELS}"
         )
 
-    return tokenizer  # type: ignore
+    return tokenizer

@@ -7,6 +7,7 @@ setup(
     entry_points={
         "console_scripts": [
             "gen-answers = cli.generate_answers:main",
+            "get-activations = cli.get_activations:main",
         ],
     },
 )
