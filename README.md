@@ -106,3 +106,7 @@ question, answer = dataset[0]  # Can also index `dataset` with a slice or iterab
 model_answer = tg.generate(question)
 eval_fn(model_answer, anwser)  # Returns list[int]: 1 if correct, 0 otherwise
 ```
+---
+
+## How to add Models and Datasets
+See [`docs/adding-datasets.md`](https://github.com/jmsdao/pik/blob/main/docs/adding-datasets.md) and [`docs/adding-models.md`](https://github.com/jmsdao/pik/blob/main/docs/adding-models.md).
