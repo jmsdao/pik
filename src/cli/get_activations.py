@@ -1,15 +1,19 @@
 import argparse
+import io
 import pickle
 import random
+import shutil
 import sys
 from collections import defaultdict
 from functools import partial
 from pathlib import Path
 
+import pandas as pd
 import torch
 import yaml
-from tqdm.auto import tqdm
+from tqdm.auto import tqdm, trange
 
+from pik import ROOT_DIR
 from pik.datasets import load_dataset
 from pik.datasets.utils import get_data_ids, get_data_ids_from_file
 from pik.models import load_model, load_tokenizer
@@ -17,8 +21,9 @@ from pik.models.hooks import HookedModule
 
 from cli.helpers import (
     Timer, LINE_BREAK, append_postfix, readable_size,
+    get_repo_info, get_hardware_info,
     validate_file, validate_local_dir,
-    check_s3_write_access,
+    get_s3_bucket_name_and_key, connect_to_s3, check_s3_write_access,
     check_files_exist_locally, check_files_exist_s3
 )
 
@@ -63,6 +68,7 @@ def get_metadata_filenames(args: argparse.Namespace, config: dict) -> dict:
     filenames["repo_info"] = append_postfix("repo_info.txt", postfix)
     filenames["hardware_info"] = append_postfix("hardware_info.txt", postfix)
     filenames["environment"] = append_postfix("environment.yaml", postfix)
+    filenames["file_indices"] = append_postfix("file_indices.csv", postfix)
 
     # Sort the dict by value
     filenames = dict(sorted(filenames.items(), key=lambda item: item[1]))
@@ -110,6 +116,145 @@ def get_resulting_filenames(
     return filenames
 
 
+def save_results_locally(
+    args: argparse.Namespace,
+    config: dict,
+    file_indices: pd.DataFrame,
+    store: dict,
+    cur_filepart: int,
+    num_fileparts: int,
+) -> None:
+    """Save activations and metadata to local directory."""
+
+    local_dir = config["results"]["dir"]["local"]
+    filenames = get_metadata_filenames(args, config)
+
+    # Save config file local_dir
+    shutil.copy(args.config, Path(local_dir))
+
+    # Save repo info local_dir
+    with open(Path(local_dir) / filenames["repo_info"], "w") as f:
+        f.write(get_repo_info())
+
+    # Save hardware info local_dir
+    with open(Path(local_dir) / filenames["hardware_info"], "w") as f:
+        f.write(get_hardware_info())
+
+    # Save environment.yaml to local_dir
+    shutil.copy(
+        ROOT_DIR / "environment.yaml",
+        Path(local_dir) / filenames["environment"]
+    )
+
+    # Save file_indices.csv to local_dir
+    file_indices["file_index"] = file_indices["file_index"].astype(int)
+    file_indices["qid"] = file_indices["qid"].astype(int)
+    file_indices.to_csv(
+        Path(local_dir) / filenames["file_indices"], index=False,
+    )
+
+    # Save activations to local_dir
+    for key, obj in store.items():
+        fname = key
+        if num_fileparts > 1:
+            fname += f"-{cur_filepart :05d}-of-{num_fileparts :05d}"
+        fname += ".pkl"
+        with open(Path(local_dir) / fname, "wb") as f:
+            pickle.dump(obj, f)
+
+
+def save_results_s3(
+    args: argparse.Namespace,
+    config: dict,
+    file_indices: pd.DataFrame,
+    store: dict,
+    cur_filepart: int,
+    num_fileparts: int,
+) -> None:
+    """Save activations and metadata to S3."""
+    filenames = get_metadata_filenames(args, config)
+
+    s3_uri = config["results"]["dir"]["s3"]
+    bucket_name, s3_key_prefix = get_s3_bucket_name_and_key(s3_uri)
+    bucket = connect_to_s3(bucket_name)
+
+    # Upload config file to S3
+    config_key = s3_key_prefix + filenames["config"]
+    try:
+        bucket.upload_file(args.config, config_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload {args.config} to s3 {config_key}")
+        print("Continuing...")
+
+    # Upload repo info to S3
+    repo_info_key = s3_key_prefix + filenames["repo_info"]
+    try:
+        str_buffer = io.StringIO(get_repo_info())
+        bucket.put_object(Body=str_buffer.getvalue(), Key=repo_info_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload {filenames['repo_info']} to s3 {repo_info_key}")
+        print("Continuing...")
+
+    # Upload hardware info to S3
+    hardware_info_key = s3_key_prefix + filenames["hardware_info"]
+    try:
+        str_buffer = io.StringIO(get_hardware_info())
+        bucket.put_object(Body=str_buffer.getvalue(), Key=hardware_info_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload {filenames['hardware_info']} to s3 {hardware_info_key}")
+        print("Continuing...")
+
+    # Upload environment.yaml to S3
+    environment_key = s3_key_prefix + filenames["environment"]
+    try:
+        bucket.upload_file(ROOT_DIR / "environment.yaml", environment_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload {filenames['environment']} to s3 {environment_key}")
+        print("Continuing...")
+
+    # Upload filesindices.csv to S3
+    file_indices["file_index"] = file_indices["file_index"].astype(int)
+    file_indices["qid"] = file_indices["qid"].astype(int)
+
+    file_indices_key = s3_key_prefix + filenames["file_indices"]
+    try:
+        str_buffer = io.StringIO()
+        file_indices.to_csv(str_buffer, index=False)
+        bucket.put_object(Body=str_buffer.getvalue(), Key=file_indices_key)
+    except Exception as e:
+        print(e)
+        print(f"Warning: failed to upload {filenames['file_indices']} to s3 {file_indices_key}")
+        print("Continuing...")
+
+    # Upload activations to S3
+    for key, obj in store.items():
+        fname = key
+        if num_fileparts > 1:
+            fname += f"-{cur_filepart :05d}-of-{num_fileparts :05d}"
+        fname += ".pkl"
+        s3_key = s3_key_prefix + fname
+        try:
+            pkl_obj = pickle.dumps(obj)
+            pkl_buffer = io.BytesIO(pkl_obj)
+            pbar = tqdm(total=len(pkl_obj), unit="B", unit_scale=True, leave=True)
+            pbar.set_description(f"(S3) Uploading {s3_key}")
+            bucket.upload_fileobj(
+                Fileobj=pkl_buffer,
+                Key=s3_key,
+                Callback=lambda bytes_uploaded: pbar.update(bytes_uploaded),
+            )
+            pbar.close()
+        except Exception as e:
+            print(e)
+            print(f"Warning: failed to upload {fname} to s3 {s3_key}")
+            print("Continuing...")
+
+
+# --- MAIN --------------------------------------------------------------------
 def main():
     args = parse_args()
 
@@ -238,19 +383,14 @@ def main():
             encoded_inputs = tokenizer([text_input], return_tensors="pt").to(model.device)  # type: ignore
             with torch.inference_mode(), hooked_model.hooks(fwd=fwd_hook_fns):
                 hooked_model(**encoded_inputs, **forward_kwargs)
-            # Change last `hook_obj` to `(qid, hook_obj)` for each key is store
+            # Change last `hook_obj` to `(qid, hook_obj)` for each key in store
             for key in store.keys():
                 store[key][-1] = (qid, store[key][-1])
 
         # Get test sizes, in bytes
         test_sizes = {}
         for key, obj in store.items():
-            tmp_path = Path(key + ".pkl")
-            tmp_path = Path(hex(random.getrandbits(64)))
-            with open(tmp_path, "wb") as fh:
-                pickle.dump(obj, fh)
-            test_sizes[key] = tmp_path.stat().st_size  # type: ignore
-            tmp_path.unlink()
+            test_sizes[key] = len(pickle.dumps(obj))  # type: ignore
 
         # Print size estimation results
         total_size = 0
@@ -294,7 +434,84 @@ def main():
         sys.exit()
 
     # --- RUN ACTIVATION COLLECTION -------------------------------------------
-    raise NotImplementedError("WIP")
+    print(LINE_BREAK)
+    print("Collecting activations...")
+    if save_frequency:
+        print(f"Saving activations every {save_frequency} questions")
+
+    file_indices = pd.DataFrame()
+    cur_filepart = 1
+    fid = 0
+
+    progress_bar = trange(len(qids))
+    for i in progress_bar:
+        save_this_iter = save_frequency and (i + 1) % save_frequency == 0
+
+        # Setup input
+        qid = qids[i]
+        question, _ = dataset[qid]
+        text_input = config["prompt_template"].format(question)
+        encoded_inputs = tokenizer([text_input], return_tensors="pt").to(model.device)  # type: ignore
+
+        # Update progress bar
+        bar_desc = f"(get-activations) Processing qid={qid}"
+        if save_this_iter:
+            bar_desc += " (saving...)"
+        progress_bar.set_description(bar_desc)
+
+        # Run forward pass
+        with torch.inference_mode(), hooked_model.hooks(fwd=fwd_hook_fns):
+            hooked_model(**encoded_inputs, **forward_kwargs)
+
+        # Change last `hook_obj` to `(qid, hook_obj)` for each key in store
+        for key in store.keys():
+            store[key][-1] = (qid, store[key][-1])
+
+        # Update file indices
+        file_indices.loc[i, "qid"] = qid
+        file_indices.loc[i, "file_index"] = fid
+        if num_fileparts > 1:
+            filepart_string = f"{cur_filepart :05d}-of-{num_fileparts :05d}"
+            file_indices.loc[i, "filepart"] = filepart_string
+        fid += 1
+
+        # Periodically save activations to disk/S3
+        if save_this_iter:
+            if local_dir:
+                save_results_locally(
+                    args, config,
+                    file_indices, store,
+                    cur_filepart, num_fileparts,
+                )
+            if s3_uri:
+                save_results_s3(
+                    args, config,
+                    file_indices, store,
+                    cur_filepart, num_fileparts,
+                )
+            store.clear()
+            cur_filepart += 1
+            fid = 0
+
+    # --- SAVE FINAL RESULTS --------------------------------------------------
+    print(LINE_BREAK)
+    # Might need extra conditionals for multi-part files
+    if local_dir:
+        print(f"Saving final results to {local_dir}")
+        save_results_locally(
+            args, config,
+            file_indices, store,
+            cur_filepart, num_fileparts,
+        )
+    if s3_uri:
+        print(f"Saving final results to {s3_uri}")
+        save_results_s3(
+            args, config,
+            file_indices, store,
+            cur_filepart, num_fileparts,
+        )
+
+    print("Success!")
 
 
 if __name__ == "__main__":
