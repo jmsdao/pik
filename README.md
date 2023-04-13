@@ -80,11 +80,28 @@ git update-index --assume-unchanged .env
 
 ## CLI Usage Examples
 
+### `gen-answers`
+Used to generate answers for a given dataset using a given model. All parameters needed for running the experiment are defined in a YAML config file.
+
 ```bash
 # Estimate runtime of an experiment defined by the config
 gen-answers --estimate configs/example-gen-answers.yaml
+```
+```bash
 # Run the experiment
 gen-answers configs/example-gen-answers.yaml
+```
+
+### `get-activations`
+Used to generate answers for a given dataset using a given model. All parameters needed for running the experiment are defined in a YAML config file.
+
+```bash
+# Estimate disk space used by the collected activations of an experiment defined by the config
+get-activations --estimate configs/example-get-activations.yaml
+```
+```bash
+# Run the experiment
+get-activations configs/example-get-activations.yaml
 ```
 
 ---
@@ -101,11 +118,18 @@ dataset, eval_fn = load_dataset("trivia_qa"), get_eval_fn("trivia_qa")
 model, tokenizer = load_model("gpt2"), load_tokenizer("gpt2")
 
 tg = TextGenerator(model, tokenizer)
-question, answer = dataset[0]  # Can also index `dataset` with a slice or iterable
+questions, answers = dataset[:5]  # index the first 5 QA pairs
 
-model_answer = tg.generate(question)
+template = "Answer the following:\nQ: {question}\nA:"
+text_inputs = tg.prompt_engineer(template, questions)  # same template applied to all questions
+
+# Generate a list of answers corresponding to the list of questions
+model_answers = tg.generate(text_inputs)
 eval_fn(model_answer, anwser)  # Returns list[int]: 1 if correct, 0 otherwise
 ```
+
+See also [`docs/llama-hooks.md`](https://github.com/jmsdao/pik/blob/main/docs/llama-hooks.md) for an example of how to use the `pik.models.hooks` submodule.
+
 ---
 
 ## How to add Models and Datasets

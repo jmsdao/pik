@@ -15,7 +15,7 @@ results:
   # postfix: _part1  # Optional (str): postfix to append to results filenames
   dir:
     local: ./results  # Required (dir) if s3 is not specified, otherwise optional
-    s3: s3://YOUR-BUCKET/experiments/test/  # Required (s3 uri) if local is not specified, otherwise optional
+    # s3: s3://YOUR-BUCKET/experiments/test/  # Required (s3 uri) if local is not specified, otherwise optional
   save_frequency: 6  # Optional (int): save results every N questions, otherwise only save at the end
   overwrite: False  # Required (bool): overwrite existing results.
                     # If False, will fail if any results already exist
@@ -47,6 +47,7 @@ hook_fns: |-
 # Left side identation, and end of string newline are ignored
 # For more details, see: https://yaml-multiline.info/
 prompt_template: |-
+  Answer these questions:
   Question: {}
   Answer:
 # End of YAML file

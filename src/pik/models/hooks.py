@@ -14,6 +14,7 @@ class HookInfo:
 
 
 class HookedModule(nn.Module):
+    # Heavily borrowed from: https://github.com/slavachalnev/hf_lens
     def __init__(self, model: nn.Module):
         super().__init__()
         self.model = model
