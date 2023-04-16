@@ -18,7 +18,7 @@ class LambadaDataset(Dataset):
         self, key: Union[int, Iterable[int], slice]
     ) -> Union[tuple[str, list[str]], tuple[str, list[str]]]:
         """
-        Returns a tuple:
+        Returns a tuple containing:
             passage (str | list[str]):
                 a passage with the last word omitted
             target (str | list[str]):

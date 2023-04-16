@@ -5,7 +5,7 @@ from datasets import load_dataset
 
 
 # Custom loading script to skip extracting train and test sets
-LOADING_SCRIPT = Path(__file__).parent / "loading.py"
+LOADING_SCRIPT = Path(__file__).parent / "trivia_qa.py"
 
 
 class TriviaQADataset(Dataset):
@@ -33,7 +33,7 @@ class TriviaQADataset(Dataset):
         tuple[list[str], list[list[str]]]
     ]:
         """
-        Returns a tuple:
+        Returns a tuple containing:
             question (str | list[str]):
                 text string of the question
             answer_aliases (list[str] | list[list[str]]):
