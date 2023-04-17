@@ -5,7 +5,6 @@ import re
 def evaluate_answer(
     model_answers: Union[str, list[str]],
     dataset_answers: Union[str, list[str]],
-    delim_lstrip: bool = False,
 ) -> list[int]:
     """Evaluate if model answer is correct. An answer is correct if the dataset
     answer is a substring of the model answer.
@@ -13,8 +12,6 @@ def evaluate_answer(
     Args:
         model_answers (str or list[str]): model answer(s)
         dataset_answers (str or list[str]): answer from the dataset
-        delim_lstrip (bool): if True, everything to the left of GSM8K's delimiter "#### "
-            is removed from model_answers
 
     Returns:
         results (list[int]): 1 if model answer is correct, 0 otherwise
@@ -38,12 +35,10 @@ def evaluate_answer(
 
     results = []
     for model_answer, dataset_answer in zip(model_answers, dataset_answers):
-        if delim_lstrip:
-            model_answer = re.split(r"#### ", model_answer)[-1]
+        dataset_answer = int(dataset_answer.replace(",", ""))  # Clean up answer
 
-        # Use word boundaries to avoid substring matches ie. "42" in "420"
-        pattern = r"\b" + dataset_answer + r"\b"
-        if re.findall(pattern, model_answer):
+        matches = re.findall(r"####\s+([\d,-]+)", model_answer)
+        if matches and int(matches[0].replace(",", "")) == dataset_answer:
             results.append(1)
         else:
             results.append(0)

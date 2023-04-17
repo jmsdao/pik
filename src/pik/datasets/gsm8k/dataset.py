@@ -11,7 +11,9 @@ class GSM8KDataset(Dataset):
 
     def __init__(self):
         gsm8k = load_dataset("gsm8k", name="main")
-        self.dataset = concatenate_datasets([gsm8k["train"], gsm8k["test"]])  # type: ignore
+        gsm8k_test = gsm8k["test"].train_test_split(10)  # type: ignore
+        self.prompting = gsm8k_test["test"]  # Set aside 10 examples for prompting
+        self.dataset = concatenate_datasets([gsm8k["train"], gsm8k_test["train"]])  # type: ignore
 
     def __len__(self) -> int:
         """Returns the number of rows in the dataset."""
