@@ -4,7 +4,10 @@ from datasets import load_dataset, concatenate_datasets
 
 
 class GSM8KDataset(Dataset):
-    """Creates a PyTorch Dataset for the Lambada dataset."""
+    """Creates a PyTorch Dataset for the GSM8K dataset.
+
+    See: https://huggingface.co/datasets/gsm8k
+    """
 
     def __init__(self):
         gsm8k = load_dataset("gsm8k", name="main")

@@ -9,7 +9,10 @@ LOADING_SCRIPT = Path(__file__).parent / "trivia_qa.py"
 
 
 class TriviaQADataset(Dataset):
-    """Creates a PyTorch Dataset for the TriviaQA dataset."""
+    """Creates a PyTorch Dataset for the TriviaQA dataset.
+    
+    See: https://huggingface.co/datasets/trivia_qa
+    """
 
     def __init__(
         self,

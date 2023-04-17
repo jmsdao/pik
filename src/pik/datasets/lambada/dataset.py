@@ -3,8 +3,11 @@ from torch.utils.data import Dataset
 from datasets import load_dataset, concatenate_datasets
 
 
-class LambadaDataset(Dataset):
-    """Creates a PyTorch Dataset for the Lambada dataset."""
+class LAMBADADataset(Dataset):
+    """Creates a PyTorch Dataset for the LAMBADA dataset.
+
+    See: https://huggingface.co/datasets/lambada
+    """
 
     def __init__(self):
         lambada = load_dataset("lambada")
@@ -19,10 +22,8 @@ class LambadaDataset(Dataset):
     ) -> Union[tuple[str, list[str]], tuple[str, list[str]]]:
         """
         Returns a tuple containing:
-            passage (str | list[str]):
-                a passage with the last word omitted
-            target (str | list[str]):
-                the target word that completes the passage
+            passage (str | list[str]): a passage with the last word omitted
+            target (str | list[str]): the target word that completes the passage
         """
         datasubset = self.dataset[key]["text"]
 
