@@ -132,7 +132,11 @@ class TextGenerator:
 
         # Remove the input strings and everything before from the output strings
         if remove_input:
-            for i, text_input in enumerate(text_inputs):
+            # Pass the input through the tokenizer in case the input text length changes
+            text_inputs_decoded = self.tokenizer.batch_decode(
+                encoded_inputs["input_ids"], skip_special_tokens=True
+            )
+            for i, text_input in enumerate(text_inputs_decoded):
                 text_outputs[i] = text_outputs[i][len(text_input):]
 
         return text_outputs
