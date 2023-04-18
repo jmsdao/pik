@@ -26,7 +26,7 @@ forward_kwargs:  # Optional (dict): kwargs to pass to the model's forward method
 # Required (str): Python code to define which modules to hook and a hook function
 # Code will be run with `exec` in the CLI
 # `modules_to_hook` is required, and should be list[str] with valid module paths
-# `fwd_hook_function` is requirs `module_path=None` and `store=None` as kwargs
+# `fwd_hook_function` is requires `module_path=None` and `store=None` as kwargs
 # `store` will be a defaultdict(list) used to pass on the activations you want to collect
 # The .keys() of `store` will be used as the prefixes of resulting filenames
 # All tensors MUST be moved to the CPU for pickling

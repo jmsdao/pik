@@ -30,6 +30,8 @@ class MBPPDataset(Dataset):
 
     def __init__(self):
         mbpp = load_dataset("mbpp", name="sanitized")
+
+        self.prompting = mbpp["prompt"]  # type: ignore
         self.dataset = concatenate_datasets(
             [mbpp["train"], mbpp["test"], mbpp["validation"]]  # type: ignore
         )
