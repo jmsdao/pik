@@ -35,10 +35,11 @@ def evaluate_answer(
 
     results = []
     for model_answer, dataset_answer in zip(model_answers, dataset_answers):
-        dataset_answer = int(dataset_answer.replace(",", ""))  # Clean up answer
+        model_answer = model_answer.replace(",", "")  # Clean up answers
+        dataset_answer = dataset_answer.replace(",", "")
 
-        matches = re.findall(r"####\s+([\d,-]+)", model_answer)
-        if matches and int(matches[0].replace(",", "")) == dataset_answer:
+        pattern = r"\b" + dataset_answer + r"\b"
+        if re.findall(pattern, model_answer):
             results.append(1)
         else:
             results.append(0)

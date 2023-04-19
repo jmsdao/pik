@@ -1,6 +1,8 @@
 # This script uses conditional imports to minimize slow imports.
 
-IMPLEMENTED_DATASETS = ["gsm8k", "mbpp", "lambada", "trivia_qa"]
+IMPLEMENTED_DATASETS = [
+    "gsm8k", "mbpp", "lambada", "random_arithemtic", "trivia_qa"
+]
 
 
 def load_dataset(dataset_name: str):
@@ -9,13 +11,17 @@ def load_dataset(dataset_name: str):
         from .gsm8k import GSM8KDataset
         return GSM8KDataset()
 
+    if dataset_name == "lambada":
+        from .lambada import LAMBADADataset
+        return LAMBADADataset()
+
     if dataset_name == "mbpp":
         from .mbpp import MBPPDataset
         return MBPPDataset()
 
-    if dataset_name == "lambada":
-        from .lambada import LAMBADADataset
-        return LAMBADADataset()
+    if dataset_name == "random_arithmetic":
+        from .random_arithmetic import RandomArithmeticDataset
+        return RandomArithmeticDataset()
 
     if dataset_name == "trivia_qa":
         from .trivia_qa import TriviaQADataset
@@ -33,12 +39,16 @@ def get_eval_fn(dataset_name: str):
         from .gsm8k import evaluate_answer
         return evaluate_answer
 
+    if dataset_name == "lambada":
+        from .lambada import evaluate_answer
+        return evaluate_answer
+
     if dataset_name == "mbpp":
         from .mbpp import evaluate_answer
         return evaluate_answer
 
-    if dataset_name == "lambada":
-        from .lambada import evaluate_answer
+    if dataset_name == "random_arithmetic":
+        from .random_arithmetic import evaluate_answer
         return evaluate_answer
 
     if dataset_name == "trivia_qa":
