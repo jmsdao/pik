@@ -1,8 +1,8 @@
 # This script uses conditional imports to minimize slow imports.
 
 IMPLEMENTED_DATASETS = [
-    "gsm8k", "lambada", "mbpp", "mmlu", "openbookqa",
-    "piqa", "random_arithemtic", "social_i_qa", "trivia_qa",
+    "gsm8k", "lambada", "mbpp", "mmlu", "openbookqa", "piqa",
+    "random_arithemtic", "social_i_qa", "trivia_qa", "truthful_qa",
 ]
 
 
@@ -43,6 +43,10 @@ def load_dataset(dataset_name: str):
     if dataset_name == "trivia_qa":
         from .trivia_qa import TriviaQADataset
         return TriviaQADataset()
+
+    if dataset_name == "truthful_qa":
+        from .truthful_qa import TruthfulQADataset
+        return TruthfulQADataset()
 
     raise NotImplementedError(
         f"Dataset '{dataset_name}' is not implemented. "
@@ -86,6 +90,10 @@ def get_eval_fn(dataset_name: str):
 
     if dataset_name == "trivia_qa":
         from .trivia_qa import evaluate_answer
+        return evaluate_answer
+
+    if dataset_name == "truthful_qa":
+        from .truthful_qa import evaluate_answer
         return evaluate_answer
 
     raise NotImplementedError(

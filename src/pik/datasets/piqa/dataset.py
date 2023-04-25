@@ -16,6 +16,7 @@ class PIQADataset(Dataset):
 
     See: https://huggingface.co/datasets/piqa/
     """
+
     def __init__(self, choice_labels=CHOICE_LABELS, template=TEMPLATE):
         if len(choice_labels) != 2:
             raise ValueError("choice_labels must be a list of length 2")
