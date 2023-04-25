@@ -40,6 +40,9 @@ class MMLUDataset(Dataset):
     See: https://huggingface.co/datasets/tasksource/mmlu
     """
     def __init__(self, choice_labels=CHOICE_LABELS, template=TEMPLATE):
+        if len(choice_labels) != 4:
+            raise ValueError("choice_labels must have 4 elements")
+
         self.choice_labels = choice_labels
         self.template = template
 

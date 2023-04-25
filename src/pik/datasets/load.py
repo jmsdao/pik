@@ -1,7 +1,8 @@
 # This script uses conditional imports to minimize slow imports.
 
 IMPLEMENTED_DATASETS = [
-    "gsm8k", "lambada", "mbpp", "mmlu", "random_arithemtic", "trivia_qa",
+    "gsm8k", "lambada", "mbpp", "mmlu",
+    "openbookqa", "random_arithemtic", "trivia_qa",
 ]
 
 
@@ -19,9 +20,13 @@ def load_dataset(dataset_name: str):
         from .mbpp import MBPPDataset
         return MBPPDataset()
 
-    if dataset_name == "MMLU":
+    if dataset_name == "mmlu":
         from .mmlu import MMLUDataset
         return MMLUDataset()
+
+    if dataset_name == "openbookqa":
+        from .openbookqa import OpenBookQADataset
+        return OpenBookQADataset()
 
     if dataset_name == "random_arithmetic":
         from .random_arithmetic import RandomArithmeticDataset
@@ -53,6 +58,10 @@ def get_eval_fn(dataset_name: str):
 
     if dataset_name == "mmlu":
         from .mmlu import evaluate_answer
+        return evaluate_answer
+
+    if dataset_name == "openbookqa":
+        from .openbookqa import evaluate_answer
         return evaluate_answer
 
     if dataset_name == "random_arithmetic":
