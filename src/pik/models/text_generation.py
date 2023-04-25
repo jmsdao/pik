@@ -139,4 +139,8 @@ class TextGenerator:
             for i, text_input in enumerate(text_inputs_decoded):
                 text_outputs[i] = text_outputs[i][len(text_input):]
 
+        # Unlist if only one input
+        if len(text_inputs) == 1:
+            text_outputs = text_outputs[0]
+
         return text_outputs

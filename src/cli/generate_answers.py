@@ -13,7 +13,7 @@ from tqdm.auto import tqdm, trange
 from transformers import GenerationConfig
 
 from pik import ROOT_DIR
-from pik.datasets import get_eval_fn, load_dataset
+from pik.datasets import load_dataset
 from pik.datasets.utils import get_data_ids, get_data_ids_from_file, get_token_seq_lens
 from pik.models import load_model, load_tokenizer
 from pik.models.text_generation import TextGenerator
@@ -311,12 +311,12 @@ def main():
         gen_config=GenerationConfig(**config["generation"]["config"]),
     )
 
-    # --- LOAD DATASET AND EVALUATION FUNCTION --------------------------------
+    # --- LOAD DATASET --------------------------------------------------------
     dataset_name = config["dataset"]["name"]
     print(LINE_BREAK)
     print(f'Loading dataset "{dataset_name}"...')
     with Timer("Loaded dataset in {}"):
-        dataset, eval_fn = load_dataset(dataset_name), get_eval_fn(dataset_name)
+        dataset = load_dataset(dataset_name)
 
     # Get question ids of questions to process
     if ids_file:
@@ -409,9 +409,8 @@ def main():
                 config["prompt_template"], questions
             )
 
-            # Generate model ouputs and evaluate
+            # Generate model ouputs
             text_outputs = text_generator.generate(text_inputs)
-            evaluations = eval_fn(text_outputs, answers)
 
             # Update progress bar
             questions_in_batch = len(batch) / generations_per_question
@@ -470,7 +469,7 @@ def main():
     if save_frequency:
         print(f"Saving results every {save_frequency} questions")
 
-    text_gens = pd.DataFrame(columns=["qid", "model_answer", "evaluation"])
+    text_gens = pd.DataFrame(columns=["qid", "model_answer"])
     qa_pairs = pd.DataFrame(columns=["qid", "question", "answer"])
 
     batched_qids = text_generator.get_batched_data_ids(
@@ -491,16 +490,14 @@ def main():
             config["prompt_template"], questions
         )
 
-        # Generate model ouputs and evaluate
+        # Generate model ouputs
         text_outputs = text_generator.generate(text_inputs)
-        evaluations = eval_fn(text_outputs, answers)
 
         # Collect results
         batch_tg = pd.DataFrame()
         batch_tg["qid"] = batch
         batch_tg["model_answer"] = text_outputs
         batch_tg["model_answer"] = batch_tg["model_answer"].str.rstrip()
-        batch_tg["evaluation"] = evaluations
         text_gens = pd.concat([text_gens, batch_tg], ignore_index=True)
 
         qids_in_batch = pd.Series(batch).unique().tolist()
@@ -516,19 +513,11 @@ def main():
         num_questions_processed += questions_in_batch
 
         # Update progress bar
-        mean_evals_per_qid = (
-            batch_tg[["qid", "evaluation"]]
-            .groupby("qid").mean().round(3)
-            ["evaluation"].tolist()
-        )
-        bar_desc = (
-            f"qids in batch: {qids_in_batch}, "
-            f"mean evals per qid: {mean_evals_per_qid}"
-        )
+        bar_desc = f"qids in batch: {qids_in_batch}"
         if save_frequency and num_questions_processed >= save_frequency:
             bar_desc += " (saving results...)"
-        progress_bar.update(questions_in_batch)
         progress_bar.set_description(bar_desc)
+        progress_bar.update(questions_in_batch)
 
         # Periodically save results
         if save_frequency and num_questions_processed >= save_frequency:
