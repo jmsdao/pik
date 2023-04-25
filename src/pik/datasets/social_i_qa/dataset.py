@@ -58,7 +58,7 @@ class SIQADataset(Dataset):
             question = self.template.format(
                 datasubset["context"], datasubset["question"], *choices
             )
-            answer = self.choice_labels[int(datasubset["label"])]
+            answer = self.choice_labels[int(datasubset["label"]) - 1]
         else:
             zipped = zip(
                 datasubset["context"],
@@ -76,7 +76,7 @@ class SIQADataset(Dataset):
                     f"{self.choice_labels[2]} {ans_c}",
                 ]
                 q = self.template.format(c, q, *choices)
-                a = self.choice_labels[int(lab)]
+                a = self.choice_labels[int(lab) - 1]
                 question.append(q)
                 answer.append(a)
 
