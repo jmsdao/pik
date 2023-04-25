@@ -38,7 +38,7 @@ def add_digits(n_digits: int, comma: bool = True, **kwargs) -> tuple[str, str]:
 
     Eg. "What is 4 plus 9?" -> "13"
     """
-    fmt = int2str if comma else lambda x: x
+    fmt = int2str if comma else str
     i1 = rand_int(n_digits)
     i2 = rand_int(n_digits)
     question = f"What is {fmt(i1)} plus {fmt(i2)}?"
@@ -52,7 +52,7 @@ def multiop_digits(n_digits: int, comma: bool = True, **kwargs) -> tuple[str, st
 
     Eg. " What is 5 * 1 - 6?" -> "-1"
     """
-    fmt = int2str if comma else lambda x: x
+    fmt = int2str if comma else str
     i1 = rand_int(n_digits)
     i2 = rand_int(n_digits)
     i3 = rand_int(n_digits)
@@ -73,7 +73,7 @@ def multiply_digits(n_digits: int, comma: bool = True, **kwargs) -> tuple[str, s
 
     Eg. "What is 4 times 9?" -> "36"
     """
-    fmt = int2str if comma else lambda x: x
+    fmt = int2str if comma else str
     i1 = rand_int(n_digits)
     i2 = rand_int(n_digits)
     question = f"What is {fmt(i1)} times {fmt(i2)}?"
@@ -82,7 +82,6 @@ def multiply_digits(n_digits: int, comma: bool = True, **kwargs) -> tuple[str, s
     return question, answer
 
 
-# def multisum_digits(n_digits, comma=True, n_terms=5, **kwargs):
 def multisum_digits(
     n_digits: int,
     comma: bool = True,
@@ -93,7 +92,7 @@ def multisum_digits(
 
     Eg. "What is 4 + 9 + 2?" -> "15"
     """
-    fmt = int2str if comma else lambda x: x
+    fmt = int2str if comma else str
     i = [rand_int(n_digits) for _ in range(n_terms)]
     question = f"What is {fmt(i[0])}"
     for i_ in i[1:]:
@@ -109,7 +108,7 @@ def subtract_digits(n_digits: int, comma: bool = True, **kwargs) -> tuple[str, s
 
     Eg. "What is 4 minus 9?" -> "-5"
     """
-    fmt = int2str if comma else lambda x: x
+    fmt = int2str if comma else str
     i1 = rand_int(n_digits)
     i2 = rand_int(n_digits)
     question = f"What is {fmt(i1)} minus {fmt(i2)}?"
