@@ -22,7 +22,7 @@ class GSM8KDataset(Dataset):
 
     def __getitem__(
         self, key: Union[int, Iterable[int], slice]
-    ) -> Union[tuple[str, list[str]], tuple[str, list[str]]]:
+    ) -> Union[tuple[str, str], tuple[list[str], list[str]]]:
         """
         Returns a tuple containing:
             question (str | list[str])
