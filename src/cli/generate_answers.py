@@ -506,7 +506,10 @@ def main():
         if new_qids:
             batch_qa["qid"] = new_qids
             batch_qa["question"] = batch_qa["qid"].apply(lambda x: dataset[x][0])
-            batch_qa["answer"] = batch_qa["qid"].apply(lambda x: ";".join(dataset[x][1]))  # type: ignore
+            if isinstance(dataset[0][1], list):
+                batch_qa["answer"] = batch_qa["qid"].apply(lambda x: ";".join(dataset[x][1]))  # type: ignore
+            else:
+                batch_qa["answer"] = batch_qa["qid"].apply(lambda x: dataset[x][1])
             qa_pairs = pd.concat([qa_pairs, batch_qa], ignore_index=True)
 
         questions_in_batch = len(batch) / generations_per_question
