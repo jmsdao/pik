@@ -3,16 +3,16 @@ from torch.utils.data import Dataset
 from datasets import load_dataset, concatenate_datasets
 
 
-class SciQDataset(Dataset):
-    """Creates a PyTorch Dataset for the SciQ dataset.
+class NQOpenDataset(Dataset):
+    """Creates a PyTorch Dataset for the NQOpen dataset.
 
-    See: https://huggingface.co/datasets/sciq/
+    See: https://huggingface.co/datasets/nq_open/
     """
 
     def __init__(self):
-        dataset = load_dataset("sciq")
+        dataset = load_dataset("nq_open")
         data_split = concatenate_datasets([
-            dataset["train"], dataset["validation"], dataset["test"]  # type: ignore
+            dataset["train"], dataset["validation"]  # type: ignore
         ]).train_test_split(10, shuffle=False)  # Set aside 10 for prompting
 
         self.dataset = data_split["train"]
@@ -28,17 +28,18 @@ class SciQDataset(Dataset):
         """
         Returns a tuple containing:
             question (str | list[str])
-            answer (str | list[str])
+            answer (str | list[str]): note that multiple possible answers are
+                delimited by "###".
         """
         datasubset = self.dataset[key]
 
         if isinstance(key, int):
             question = datasubset["question"]
-            answer = datasubset["correct_answer"]
+            answer = "###".join(datasubset["answer"])
         else:
             question, answer = [], []
-            for q, a in zip(datasubset["question"], datasubset["correct_answer"]):
+            for q, a in zip(datasubset["question"], datasubset["answer"]):
                 question.append(q)
-                answer.append(a)
+                answer.append("###".join(a))
 
         return (question, answer)  # type: ignore

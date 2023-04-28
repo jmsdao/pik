@@ -3,14 +3,14 @@ from torch.utils.data import Dataset
 from datasets import load_dataset, concatenate_datasets
 
 
-class SciQDataset(Dataset):
-    """Creates a PyTorch Dataset for the SciQ dataset.
+class FreebaseQADataset(Dataset):
+    """Creates a PyTorch Dataset for the FreebaseQA dataset.
 
-    See: https://huggingface.co/datasets/sciq/
+    See: https://huggingface.co/datasets/freebase_qa/
     """
 
     def __init__(self):
-        dataset = load_dataset("sciq")
+        dataset = load_dataset("freebase_qa")
         data_split = concatenate_datasets([
             dataset["train"], dataset["validation"], dataset["test"]  # type: ignore
         ]).train_test_split(10, shuffle=False)  # Set aside 10 for prompting
@@ -33,11 +33,15 @@ class SciQDataset(Dataset):
         datasubset = self.dataset[key]
 
         if isinstance(key, int):
-            question = datasubset["question"]
-            answer = datasubset["correct_answer"]
+            question = datasubset["RawQuestion"]
+            answer = datasubset["Parses"]["Answers"][0]["AnswersName"][0][0]
         else:
+            zipped = zip(
+                datasubset["RawQuestion"],
+                datasubset["Parses"]["Answers"][0]["AnswersName"][0][0],
+            )
             question, answer = [], []
-            for q, a in zip(datasubset["question"], datasubset["correct_answer"]):
+            for q, a in zipped:
                 question.append(q)
                 answer.append(a)
 
