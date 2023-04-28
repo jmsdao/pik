@@ -2,7 +2,7 @@
 
 IMPLEMENTED_DATASETS = [
     "gsm8k", "lambada", "mbpp", "mmlu", "openbookqa", "piqa",
-    "random_arithemtic", "social_i_qa", "trivia_qa", "truthful_qa",
+    "random_arithemtic", "sciq", "social_i_qa", "trivia_qa", "truthful_qa",
 ]
 
 
@@ -35,6 +35,10 @@ def load_dataset(dataset_name: str):
     if dataset_name == "random_arithmetic":
         from .random_arithmetic import RandomArithmeticDataset
         return RandomArithmeticDataset()
+
+    if dataset_name == "sciq":
+        from .sciq import SciQDataset
+        return SciQDataset()
 
     if dataset_name == "social_i_qa":
         from .social_i_qa import SIQADataset
@@ -82,6 +86,10 @@ def get_eval_fn(dataset_name: str):
 
     if dataset_name == "random_arithmetic":
         from .random_arithmetic import evaluate_answer
+        return evaluate_answer
+
+    if dataset_name == "sciq":
+        from .social_i_qa import evaluate_answer
         return evaluate_answer
 
     if dataset_name == "social_i_qa":
