@@ -128,6 +128,7 @@ def save_results_locally(
 
     local_dir = config["results"]["dir"]["local"]
     filenames = get_metadata_filenames(args, config)
+    postfix = config["results"].get("postfix", "")
 
     # Save config file local_dir
     shutil.copy(args.config, Path(local_dir))
@@ -159,6 +160,7 @@ def save_results_locally(
         if num_fileparts > 1:
             fname += f"-{cur_filepart :05d}-of-{num_fileparts :05d}"
         fname += ".pkl"
+        fname = append_postfix(fname, postfix)
         with open(Path(local_dir) / fname, "wb") as f:
             pickle.dump(obj, f)
 
@@ -173,6 +175,7 @@ def save_results_s3(
 ) -> None:
     """Save activations and metadata to S3."""
     filenames = get_metadata_filenames(args, config)
+    postfix = config["results"].get("postfix", "")
 
     s3_uri = config["results"]["dir"]["s3"]
     bucket_name, s3_key_prefix = get_s3_bucket_name_and_key(s3_uri)
@@ -216,7 +219,7 @@ def save_results_s3(
         print(f"Warning: failed to upload {filenames['environment']} to s3 {environment_key}")
         print("Continuing...")
 
-    # Upload filesindices.csv to S3
+    # Upload files_indices.csv to S3
     file_indices["file_index"] = file_indices["file_index"].astype(int)
     file_indices["qid"] = file_indices["qid"].astype(int)
 
@@ -236,6 +239,7 @@ def save_results_s3(
         if num_fileparts > 1:
             fname += f"-{cur_filepart :05d}-of-{num_fileparts :05d}"
         fname += ".pkl"
+        fname = append_postfix(fname, postfix)
         s3_key = s3_key_prefix + fname
         try:
             pkl_obj = pickle.dumps(obj)
