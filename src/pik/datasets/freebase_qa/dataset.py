@@ -38,11 +38,11 @@ class FreebaseQADataset(Dataset):
         else:
             zipped = zip(
                 datasubset["RawQuestion"],
-                datasubset["Parses"]["Answers"][0]["AnswersName"][0][0],
+                datasubset["Parses"],
             )
             question, answer = [], []
             for q, a in zipped:
                 question.append(q)
-                answer.append(a)
+                answer.append(a["Answers"][0]["AnswersName"][0][0])
 
         return (question, answer)  # type: ignore
